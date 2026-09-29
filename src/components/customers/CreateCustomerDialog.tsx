@@ -8,23 +8,24 @@ import { fieldClass } from '../../utils/styles';
 import { customerSteps, useCreateCustomerForm, type CustomerFormValues } from '../../hooks/useCreateCustomerForm';
 import { areas, cities } from '../../data/locations';
 import { salesmen } from '../../data/salesmen';
-import type { Area, Company, CustomerGrade, CustomerSegment, CustomerType } from '../../types/customer';
+import type { Area } from '../../types/customer';
+import type { ApiCompany as Company, ApiCustomerGrade as CustomerGrade, ApiCustomerSegment as CustomerSegment, ApiCustomerType as CustomerType } from '../../apis/customers';
 
 interface CreateCustomerDialogProps {
   open: boolean;
   onClose: () => void;
-  onCreate: (values: CustomerFormValues) => void;
+  onCreate: (values: CustomerFormValues) => Promise<void>;
 }
 
 const grades: {value: CustomerGrade;hint: string;}[] = [
-{ value: 'A', hint: 'Key account' },
-{ value: 'B', hint: 'High value' },
-{ value: 'C', hint: 'Standard' },
-{ value: 'D', hint: 'Occasional' }];
+{ value: 'STRONG', hint: 'Strong' },
+{ value: 'GOOD', hint: 'Good' },
+{ value: 'WEAK', hint: 'Weak' },
+{ value: 'UNKNOWN', hint: 'Unknown' }];
 
-const types: CustomerType[] = ['Corporate', 'Government', 'SME', 'Individual'];
-const segments: CustomerSegment[] = ['Banking & Finance', 'Education', 'Healthcare', 'Manufacturing', 'Retail', 'Hospitality', 'Telecommunications'];
-const companies: Company[] = ['Gestetner', 'Ricoh Division', 'Riso Division'];
+const types: CustomerType[] = ['DEALER', 'CREDIT_CUSTOMER', 'INTERNAL_CUSTOMER'];
+const segments: CustomerSegment[] = ['AIRLINE_TRAVEL_TOUR', 'ARMED_FORCES', 'BANK_GOV', 'BANK_PRIVATE', 'CONSTRUCTION', 'CORPORATE', 'DEALER', 'DEPARTMENTS', 'EDUCATION_GOV', 'EDUCATION_PRIVATE', 'EMBASSIES', 'FINANCIAL_INSTITUTE', 'GOVERNMENT', 'GOVERNMENT_BANKS', 'HEALTH', 'INDIVIDUAL', 'MANUFACTURING_DISTRIBUTION', 'MEDIA', 'MINISTRIES', 'NGO', 'OTHERS', 'PRIVATE', 'PRIVATE_BANKS', 'SHIPPING_FREIGHT_FORWARDING', 'SME', 'TELECOMMUNICATION'];
+const companies: Company[] = ['FINTECH', 'GESTETNER'];
 
 export function CreateCustomerDialog({ open, onClose, onCreate }: CreateCustomerDialogProps) {
   const form = useCreateCustomerForm(onCreate);
@@ -32,6 +33,7 @@ export function CreateCustomerDialog({ open, onClose, onCreate }: CreateCustomer
   const isLast = step === customerSteps.length - 1;
   const cityOptions = cities.filter((c) => c.area === v.area);
   const selectedSalesman = salesmen.find((s) => String(s.salesmanId) === v.salesmanId);
+  const compatibleSalesmen = salesmen.filter((s) => v.companies.includes(s.company as Company));
   const selectedCity = cities.find((c) => String(c.cityId) === v.cityId);
 
   const handleClose = () => {
@@ -155,7 +157,10 @@ export function CreateCustomerDialog({ open, onClose, onCreate }: CreateCustomer
                   key={c}
                   type="button"
                   aria-pressed={active}
-                  onClick={() => form.toggleCompany(c)}
+                  onClick={() => {
+                    form.toggleCompany(c);
+                    if (active && selectedSalesman?.company === c) setField('salesmanId', '');
+                  }}
                   className={`inline-flex h-9 items-center gap-1.5 rounded-full border px-3.5 text-sm transition-colors duration-150 ${active ? 'border-brand-500 bg-brand-50 font-medium text-brand-700' : 'border-line text-ink-muted hover:bg-canvas'}`}>
                   
                     {active && <CheckIcon className="h-3.5 w-3.5" aria-hidden="true" />}
@@ -178,7 +183,7 @@ export function CreateCustomerDialog({ open, onClose, onCreate }: CreateCustomer
         </div>
       }
 
-      {step === 1 &&
+      {false && step === 1 &&
       <div className="space-y-6">
           <section>
             <h3 className="text-sm font-semibold text-ink">Head office site</h3>
@@ -237,12 +242,12 @@ export function CreateCustomerDialog({ open, onClose, onCreate }: CreateCustomer
         </div>
       }
 
-      {step === 2 &&
+      {step === 1 &&
       <div className="space-y-6">
           <fieldset>
             <legend className="text-sm font-semibold text-ink">Assign salesman<span className="ml-0.5 text-accent-500" aria-hidden="true">*</span></legend>
             <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {salesmen.map((s) => {
+              {compatibleSalesmen.map((s) => {
               const active = v.salesmanId === String(s.salesmanId);
               return (
                 <label key={s.salesmanId} className={`flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors duration-150 ${active ? 'border-brand-500 bg-brand-50' : 'border-line hover:bg-canvas'}`}>
@@ -257,8 +262,6 @@ export function CreateCustomerDialog({ open, onClose, onCreate }: CreateCustomer
             </div>
             {e.salesmanId && <p className="mt-1.5 text-xs text-danger-700" role="alert">{e.salesmanId}</p>}
           </fieldset>
-          <div className="max-w-xs">{text('validFrom', 'Assignment starts', { required: true, type: 'date' })}</div>
-
           <section className="rounded-lg bg-canvas p-4">
             <h3 className="text-sm font-semibold text-ink">Review</h3>
             <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-3 text-sm sm:grid-cols-2">

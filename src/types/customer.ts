@@ -1,6 +1,8 @@
-export type CustomerGrade = 'A' | 'B' | 'C' | 'D';
-export type CustomerType = 'Corporate' | 'Government' | 'SME' | 'Individual';
-export type CustomerSegment =
+import type { ApiCompany, ApiCustomerGrade, ApiCustomerSegment, ApiCustomerType } from '../apis/customers';
+
+export type CustomerGrade = ApiCustomerGrade | 'A' | 'B' | 'C' | 'D';
+export type CustomerType = ApiCustomerType | 'Corporate' | 'Government' | 'SME' | 'Individual';
+export type CustomerSegment = ApiCustomerSegment |
 'Banking & Finance' |
 'Education' |
 'Healthcare' |
@@ -8,7 +10,7 @@ export type CustomerSegment =
 'Retail' |
 'Hospitality' |
 'Telecommunications';
-export type Company = 'Gestetner' | 'Ricoh Division' | 'Riso Division';
+export type Company = ApiCompany | 'Gestetner' | 'Ricoh Division' | 'Riso Division';
 export type Area =
 'Colombo' |
 'Western' |
@@ -40,8 +42,8 @@ export interface Customer {
   segment: CustomerSegment;
   companies: Company[];
   salesmanId: number;
-  headOfficeArea: Area;
-  primaryContact: SiteContact;
+  headOfficeArea?: Area;
+  primaryContact?: SiteContact;
   createdAt: string;
 }
 

@@ -59,8 +59,8 @@ export function CustomerMachinesDrawer({ customer, onClose }: CustomerMachinesDr
                 <UserIcon className="mt-0.5 h-4 w-4 shrink-0 text-ink-subtle" aria-hidden="true" />
                 <div>
                   <dt className="sr-only">Primary contact</dt>
-                  <dd className="text-ink">{customer.primaryContact.contactName}</dd>
-                  <dd className="text-xs text-ink-muted">{customer.primaryContact.designation} · {customer.primaryContact.mobileNumber}</dd>
+                  <dd className="text-ink">{customer.primaryContact?.contactName ?? '—'}</dd>
+                  {customer.primaryContact && <dd className="text-xs text-ink-muted">{customer.primaryContact.designation} · {customer.primaryContact.mobileNumber}</dd>}
                 </div>
               </div>
               <div className="flex gap-2.5">

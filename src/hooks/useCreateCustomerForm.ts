@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import type { Area, Company, CustomerGrade, CustomerSegment, CustomerType } from '../types/customer';
+import type { ApiCompany as Company, ApiCustomerGrade as CustomerGrade, ApiCustomerSegment as CustomerSegment, ApiCustomerType as CustomerType } from '../apis/customers';
+import type { Area } from '../types/customer';
 import { todayIso } from '../utils/format';
 
 export interface CustomerFormValues {
@@ -34,7 +35,6 @@ export type CustomerFormErrors = Partial<Record<keyof CustomerFormValues, string
 
 export const customerSteps = [
 { id: 'details', label: 'Customer details' },
-{ id: 'site', label: 'Head office & contact' },
 { id: 'assignment', label: 'Salesman & review' }];
 
 
@@ -62,22 +62,12 @@ function validateStep(step: number, v: CustomerFormValues): CustomerFormErrors {
     if (v.headOfficeEmail && !emailPattern.test(v.headOfficeEmail)) e.headOfficeEmail = 'Enter a valid email address';
   }
   if (step === 1) {
-    if (!v.siteName.trim()) e.siteName = 'Site name is required';
-    if (!v.siteAddress1.trim()) e.siteAddress1 = 'Address line 1 is required';
-    if (!v.area) e.area = 'Choose an area';
-    if (!v.cityId) e.cityId = 'Choose a city';
-    if (!v.contactName.trim()) e.contactName = 'Contact name is required';
-    if (!v.contactEmail.trim()) e.contactEmail = 'Contact email is required';else
-    if (!emailPattern.test(v.contactEmail)) e.contactEmail = 'Enter a valid email address';
-  }
-  if (step === 2) {
     if (!v.salesmanId) e.salesmanId = 'Assign a salesman';
-    if (!v.validFrom) e.validFrom = 'Choose a start date';
   }
   return e;
 }
 
-export function useCreateCustomerForm(onSubmit: (values: CustomerFormValues) => void) {
+export function useCreateCustomerForm(onSubmit: (values: CustomerFormValues) => Promise<void>) {
   const [values, setValues] = useState<CustomerFormValues>(createEmptyValues);
   const [errors, setErrors] = useState<CustomerFormErrors>({});
   const [step, setStep] = useState(0);
@@ -125,7 +115,7 @@ export function useCreateCustomerForm(onSubmit: (values: CustomerFormValues) => 
     setSubmitting(false);
   };
 
-  const submit = () => {
+  const submit = async () => {
     for (let i = 0; i < customerSteps.length; i += 1) {
       const stepErrors = validateStep(i, values);
       if (Object.keys(stepErrors).length > 0) {
@@ -135,10 +125,14 @@ export function useCreateCustomerForm(onSubmit: (values: CustomerFormValues) => 
       }
     }
     setSubmitting(true);
-    window.setTimeout(() => {
-      onSubmit(values);
+    try {
+      await onSubmit(values);
       reset();
-    }, 700);
+    } catch {
+      // The page displays the API error; keep the dialog values so the user can retry.
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return { values, errors, step, submitting, setField, toggleCompany, copyCustomerAddress, next, back, goTo, submit, reset };

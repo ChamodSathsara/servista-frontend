@@ -1,4 +1,6 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '');
+import { api, ApiError } from './http';
+
+export { ApiError } from './http';
 
 export interface LoginRequest {
   email: string;
@@ -18,40 +20,16 @@ export interface LoginResponse {
   role: string;
 }
 
-interface ApiErrorResponse {
-  detail?: string;
-  errors?: Record<string, string>;
-}
-
-export class ApiError extends Error {
-  constructor(
-    message: string,
-    public readonly status: number,
-    public readonly fieldErrors: Record<string, string> = {},
-  ) {
-    super(message);
-    this.name = 'ApiError';
-  }
-}
-
 export async function login(request: LoginRequest): Promise<LoginResponse> {
-  if (!API_BASE_URL) {
-    throw new Error('NEXT_PUBLIC_API_BASE_URL is not configured');
+  try {
+    const { data } = await api.post<LoginResponse>('/api/auth/login', request);
+    return data;
+  } catch (error) {
+    if (error instanceof ApiError && !error.message) {
+      throw new ApiError('Login failed. Please try again.', error.status, error.fieldErrors);
+    }
+    throw error;
   }
-
-  const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(request),
-  });
-
-  const data = (await response.json().catch(() => ({}))) as Partial<LoginResponse> & ApiErrorResponse;
-
-  if (!response.ok) {
-    throw new ApiError(data.detail || 'Login failed. Please try again.', response.status, data.errors);
-  }
-
-  return data as LoginResponse;
 }
 
 export function saveLoginSession(data: LoginResponse, persistent = true): void {

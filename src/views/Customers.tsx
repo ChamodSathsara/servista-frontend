@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { PlusIcon, SearchIcon, SearchXIcon, XIcon } from 'lucide-react';
 import { toast } from 'sonner';
@@ -9,8 +9,9 @@ import { SegmentedControl } from '../components/ui/SegmentedControl';
 import { CustomersTable } from '../components/customers/CustomersTable';
 import { CustomerMachinesDrawer } from '../components/customers/CustomerMachinesDrawer';
 import { CreateCustomerDialog } from '../components/customers/CreateCustomerDialog';
-import { customers as initialCustomers } from '../data/customers';
 import { machines } from '../data/machines';
+import { createCustomer, getCustomers, type ApiCustomerGrade, type ApiCustomerSegment, type ApiCustomerType, type CustomerResponse } from '../apis/customers';
+import { ApiError } from '../apis/http';
 import type { CustomerFormValues } from '../hooks/useCreateCustomerForm';
 import type { Customer, CustomerGrade } from '../types/customer';
 
@@ -18,7 +19,9 @@ type SearchScope = 'name' | 'id';
 type StatusFilter = 'all' | 'active' | 'inactive';
 
 export function Customers() {
-  const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [scope, setScope] = useState<SearchScope>('name');
   const [status, setStatus] = useState<StatusFilter>('all');
@@ -29,6 +32,55 @@ export function Customers() {
     const id = searchParams.get('customer');
     return id ? Number(id) : null;
   });
+
+  const toCustomer = useCallback((customer: CustomerResponse): Customer => ({
+    customerId: customer.customerId,
+    sageCode: customer.sageCode ?? '',
+    customerName: customer.customerName,
+    addressLine1: customer.addressLine1 ?? '',
+    addressLine2: customer.addressLine2 ?? undefined,
+    addressLine3: customer.addressLine3 ?? undefined,
+    headOfficeTel: customer.headOfficeTelNumber ?? '',
+    headOfficeEmail: customer.headOfficeEmail ?? '',
+    isActive: customer.isActive,
+    grade: customer.customerGrade,
+    type: customer.customerType,
+    segment: customer.customerSegment,
+    companies: customer.companies,
+    salesmanId: customer.salesmanAssignment.salesmanId,
+    createdAt: customer.createdAt,
+  }), []);
+
+  const loadCustomers = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const response = await getCustomers();
+      setCustomers(response.map(toCustomer));
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : 'Unable to load customers.');
+    } finally {
+      setLoading(false);
+    }
+  }, [toCustomer]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getCustomers()
+      .then((response) => {
+        if (!cancelled) setCustomers(response.map(toCustomer));
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) setLoadError(error instanceof Error ? error.message : 'Unable to load customers.');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [toCustomer]);
 
   const machineCounts = useMemo(() => {
     const counts = new Map<number, number>();
@@ -58,33 +110,39 @@ export function Customers() {
     setGrade('all');
   };
 
-  const handleCreate = (v: CustomerFormValues) => {
-    const newId = Math.max(...customers.map((c) => c.customerId)) + 1;
-    const created: Customer = {
-      customerId: newId,
-      sageCode: v.sageCode.trim(),
-      customerName: v.customerName.trim(),
-      addressLine1: v.addressLine1,
-      addressLine2: v.addressLine2 || undefined,
-      addressLine3: v.addressLine3 || undefined,
-      headOfficeTel: v.headOfficeTel,
-      headOfficeEmail: v.headOfficeEmail,
-      isActive: v.isActive,
-      grade: v.grade as CustomerGrade,
-      type: v.type as Customer['type'],
-      segment: v.segment as Customer['segment'],
-      companies: v.companies,
-      salesmanId: Number(v.salesmanId),
-      headOfficeArea: v.area as Customer['headOfficeArea'],
-      primaryContact: { contactName: v.contactName, designation: v.contactDesignation, mobileNumber: v.contactMobile, email: v.contactEmail },
-      createdAt: new Date().toISOString()
-    };
+  const handleCreate = async (v: CustomerFormValues) => {
+    try {
+      const storedUser = localStorage.getItem('currentUser') ?? sessionStorage.getItem('currentUser');
+      const createdBy = storedUser ? Number((JSON.parse(storedUser) as { userId?: number }).userId) : 0;
+      if (!createdBy) throw new Error('Your user session is missing. Please sign in again.');
+
+      const response = await createCustomer({
+        ...(v.sageCode.trim() ? { sageCode: v.sageCode.trim() } : {}),
+        customerName: v.customerName.trim(),
+        addressLine1: v.addressLine1.trim() || undefined,
+        addressLine2: v.addressLine2.trim() || undefined,
+        addressLine3: v.addressLine3.trim() || undefined,
+        headOfficeTelNumber: v.headOfficeTel.trim() || undefined,
+        headOfficeEmail: v.headOfficeEmail.trim() || undefined,
+        isActive: v.isActive,
+        customerGrade: v.grade as ApiCustomerGrade,
+        customerType: v.type as ApiCustomerType,
+        customerSegment: v.segment as ApiCustomerSegment,
+        createdBy,
+        companies: v.companies,
+        salesmanId: Number(v.salesmanId),
+      });
+      const created = toCustomer(response);
     setCustomers((prev) => [created, ...prev]);
     setCreateOpen(false);
     toast.success(`${created.customerName} created`, {
-      description: `Customer ID ${newId}`,
-      action: { label: 'View', onClick: () => setSelectedId(newId) }
+        description: `Customer ID ${created.customerId}`,
+        action: { label: 'View', onClick: () => setSelectedId(created.customerId) }
     });
+    } catch (error) {
+      toast.error(error instanceof ApiError || error instanceof Error ? error.message : 'Customer creation failed.');
+      throw error;
+    }
   };
 
   const selected = customers.find((c) => c.customerId === selectedId) ?? null;
@@ -152,14 +210,21 @@ export function Customers() {
               className="h-10 rounded-lg border border-line bg-white px-3 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20">
               
               <option value="all">All grades</option>
-              {(['A', 'B', 'C', 'D'] as CustomerGrade[]).map((g) =>
-              <option key={g} value={g}>Grade {g}</option>
+              {(['STRONG', 'GOOD', 'WEAK', 'UNKNOWN'] as CustomerGrade[]).map((g) =>
+              <option key={g} value={g}>{g}</option>
               )}
             </select>
           </div>
         </div>
 
-        {filtered.length === 0 ?
+        {loading ?
+        <div className="px-6 py-16 text-center text-sm text-ink-muted">Loading customers…</div> :
+        loadError ?
+        <div className="flex flex-col items-center px-6 py-16 text-center">
+            <p className="text-sm font-medium text-danger-700">{loadError}</p>
+            <Button variant="secondary" className="mt-5" onClick={() => void loadCustomers()}>Try again</Button>
+          </div> :
+        filtered.length === 0 ?
         <div className="flex flex-col items-center px-6 py-16 text-center">
             <SearchXIcon className="h-8 w-8 text-ink-subtle" aria-hidden="true" />
             <p className="mt-3 text-sm font-medium text-ink">No customers match your search</p>
