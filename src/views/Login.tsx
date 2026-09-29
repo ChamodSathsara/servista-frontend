@@ -6,33 +6,57 @@ import { EyeIcon, EyeOffIcon } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { FormField } from '../components/ui/FormField';
 import { fieldClass } from '../utils/styles';
+import { ApiError, login, saveLoginSession } from '../apis/auth';
 
 interface LoginErrors {
-  username?: string;
+  email?: string;
   password?: string;
+  form?: string;
 }
 
 const modules = ['Customers & sites', 'Tech officers & dispatch', 'Machines & meter readings', 'Breakdowns & service visits'];
 
 export function Login() {
   const router = useRouter();
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(true);
   const [errors, setErrors] = useState<LoginErrors>({});
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     const next: LoginErrors = {};
-    if (!username.trim()) next.username = 'Enter your username or work email';
-    if (!password) next.password = 'Enter your password';else
-    if (password.length < 4) next.password = 'Password must be at least 4 characters';
+    const normalizedEmail = email.trim();
+    if (!normalizedEmail) next.email = 'Enter your work email';
+    else if (!/^\S+@\S+\.\S+$/.test(normalizedEmail)) next.email = 'Enter a valid email address';
+    if (!password) next.password = 'Enter your password';
     setErrors(next);
     if (Object.keys(next).length > 0) return;
+
     setLoading(true);
-    window.setTimeout(() => router.push('/dashboard'), 800);
+    try {
+      const response = await login({
+        email: normalizedEmail,
+        password,
+        deviceLabel: navigator.userAgent.slice(0, 100),
+      });
+      saveLoginSession(response, remember);
+      router.replace('/dashboard');
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setErrors({
+          email: error.fieldErrors.email,
+          password: error.fieldErrors.password,
+          form: error.message,
+        });
+      } else {
+        setErrors({ form: error instanceof Error ? error.message : 'Unable to sign in. Please try again.' });
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -43,20 +67,21 @@ export function Login() {
           <p className="mt-2 text-sm text-ink-muted">Welcome back. Sign in with your company account to continue.</p>
 
           <form onSubmit={handleSubmit} noValidate className="mt-8 space-y-5">
-            <FormField label="Username or email" htmlFor="username" error={errors.username}>
+            <FormField label="Work email" htmlFor="email" error={errors.email}>
               <input
-                id="username"
-                autoComplete="username"
+                id="email"
+                type="email"
+                autoComplete="email"
                 autoFocus
-                value={username}
+                value={email}
                 onChange={(e) => {
-                  setUsername(e.target.value);
-                  if (errors.username) setErrors((p) => ({ ...p, username: undefined }));
+                  setEmail(e.target.value);
+                  if (errors.email || errors.form) setErrors((p) => ({ ...p, email: undefined, form: undefined }));
                 }}
                 placeholder="you@gestetner.lk"
-                aria-invalid={!!errors.username}
-                aria-describedby={errors.username ? 'username-error' : undefined}
-                className={fieldClass(!!errors.username)} />
+                aria-invalid={!!errors.email}
+                aria-describedby={errors.email ? 'email-error' : undefined}
+                className={fieldClass(!!errors.email)} />
               
             </FormField>
 
@@ -78,7 +103,7 @@ export function Login() {
                   value={password}
                   onChange={(e) => {
                     setPassword(e.target.value);
-                    if (errors.password) setErrors((p) => ({ ...p, password: undefined }));
+                    if (errors.password || errors.form) setErrors((p) => ({ ...p, password: undefined, form: undefined }));
                   }}
                   placeholder="Enter your password"
                   aria-invalid={!!errors.password}
@@ -106,7 +131,13 @@ export function Login() {
               Keep me signed in on this device
             </label>
 
-            <Button type="submit" loading={loading} className="h-11 w-full">
+            {errors.form && (
+              <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+                {errors.form}
+              </p>
+            )}
+
+            <Button type="submit" loading={loading} disabled={loading} className="h-11 w-full">
               {loading ? 'Signing in…' : 'Sign in'}
             </Button>
           </form>
