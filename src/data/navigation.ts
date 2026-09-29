@@ -40,7 +40,7 @@ export const navSections: NavSection[] = [
   title: 'Sales',
   items: [
   { key: 'customers', label: 'Customers', path: '/customers', icon: Building2Icon, description: 'Customer accounts, sites and their machines.' },
-  { key: 'salesman', label: 'Salesman', path: '/salesman', icon: BriefcaseIcon, comingSoon: true, description: 'Manage your sales team, their customer assignments and targets.' },
+  { key: 'salesman', label: 'Salesman', path: '/salesman', icon: BriefcaseIcon, description: 'Manage your sales team, their customer assignments and targets.' },
   { key: 'estimates', label: 'Estimates', path: '/estimates', icon: FileTextIcon, comingSoon: true, description: 'Prepare and send repair and supply estimates for customer approval.' },
   { key: 'new-sales', label: 'New Sales', path: '/new-sales', icon: ShoppingCartIcon, comingSoon: true, description: 'Record new machine sales and hand them over for installation.' }]
 
