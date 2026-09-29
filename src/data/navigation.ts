@@ -10,6 +10,8 @@ import {
   PackageIcon,
   TriangleAlertIcon,
   GaugeIcon,
+  UserCogIcon,
+  LandmarkIcon,
   CalendarCheckIcon,
   ClipboardListIcon,
   MessageSquareIcon } from
@@ -41,6 +43,8 @@ export const navSections: NavSection[] = [
   items: [
   { key: 'customers', label: 'Customers', path: '/customers', icon: Building2Icon, description: 'Customer accounts, sites and their machines.' },
   { key: 'salesman', label: 'Salesman', path: '/salesman', icon: BriefcaseIcon, description: 'Manage your sales team, their customer assignments and targets.' },
+  { key: 'coordinator', label: 'Coordinators', path: '/coordinator', icon: UserCogIcon, description: 'Manage coordinators, areas and access.' },
+  { key: 'finance', label: 'Finance', path: '/finance', icon: LandmarkIcon, description: 'Manage finance users and company access.' },
   { key: 'estimates', label: 'Estimates', path: '/estimates', icon: FileTextIcon, comingSoon: true, description: 'Prepare and send repair and supply estimates for customer approval.' },
   { key: 'new-sales', label: 'New Sales', path: '/new-sales', icon: ShoppingCartIcon, comingSoon: true, description: 'Record new machine sales and hand them over for installation.' }]
 
