@@ -1,15 +1,16 @@
 'use client';
 
-import { CheckIcon, CopyIcon } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { CheckIcon, CopyIcon, LoaderCircleIcon, RefreshCwIcon } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { FormField } from '../ui/FormField';
 import { fieldClass } from '../../utils/styles';
 import { customerSteps, useCreateCustomerForm, type CustomerFormValues } from '../../hooks/useCreateCustomerForm';
 import { areas, cities } from '../../data/locations';
-import { salesmen } from '../../data/salesmen';
 import type { Area } from '../../types/customer';
 import type { ApiCompany as Company, ApiCustomerGrade as CustomerGrade, ApiCustomerSegment as CustomerSegment, ApiCustomerType as CustomerType } from '../../apis/customers';
+import { getSalesmen, type SalesmanResponse } from '../../apis/salesmen';
 
 interface CreateCustomerDialogProps {
   open: boolean;
@@ -28,13 +29,37 @@ const segments: CustomerSegment[] = ['AIRLINE_TRAVEL_TOUR', 'ARMED_FORCES', 'BAN
 const companies: Company[] = ['FINTECH', 'GESTETNER'];
 
 export function CreateCustomerDialog({ open, onClose, onCreate }: CreateCustomerDialogProps) {
+  const [salesmen, setSalesmen] = useState<SalesmanResponse[]>([]);
+  const [salesmenLoading, setSalesmenLoading] = useState(true);
+  const [salesmenError, setSalesmenError] = useState<string | null>(null);
   const form = useCreateCustomerForm(onCreate);
   const { values: v, errors: e, step, setField } = form;
   const isLast = step === customerSteps.length - 1;
   const cityOptions = cities.filter((c) => c.area === v.area);
   const selectedSalesman = salesmen.find((s) => String(s.salesmanId) === v.salesmanId);
-  const compatibleSalesmen = salesmen.filter((s) => v.companies.includes(s.company as Company));
+  const compatibleSalesmen = salesmen.filter((s) => s.user.isActive && v.companies.includes(s.company));
   const selectedCity = cities.find((c) => String(c.cityId) === v.cityId);
+
+  const loadSalesmen = useCallback(async () => {
+    setSalesmenLoading(true);
+    setSalesmenError(null);
+    try {
+      setSalesmen(await getSalesmen());
+    } catch (error) {
+      setSalesmenError(error instanceof Error ? error.message : 'Unable to load salesmen.');
+    } finally {
+      setSalesmenLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    getSalesmen()
+      .then((response) => { if (!cancelled) setSalesmen(response); })
+      .catch((error: unknown) => { if (!cancelled) setSalesmenError(error instanceof Error ? error.message : 'Unable to load salesmen.'); })
+      .finally(() => { if (!cancelled) setSalesmenLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
 
   const handleClose = () => {
     if (form.submitting) return;
@@ -246,6 +271,19 @@ export function CreateCustomerDialog({ open, onClose, onCreate }: CreateCustomer
       <div className="space-y-6">
           <fieldset>
             <legend className="text-sm font-semibold text-ink">Assign salesman<span className="ml-0.5 text-accent-500" aria-hidden="true">*</span></legend>
+            {salesmenLoading ?
+            <div className="mt-3 flex items-center gap-2 rounded-lg border border-line px-4 py-5 text-sm text-ink-muted">
+                <LoaderCircleIcon className="h-4 w-4 animate-spin" aria-hidden="true" /> Loading salesmen…
+              </div> : salesmenError ?
+            <div className="mt-3 rounded-lg border border-danger-600/30 bg-red-50 px-4 py-4">
+                <p className="text-sm text-danger-700">{salesmenError}</p>
+                <button type="button" onClick={() => void loadSalesmen()} className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-brand-700">
+                  <RefreshCwIcon className="h-3.5 w-3.5" /> Try again
+                </button>
+              </div> : compatibleSalesmen.length === 0 ?
+            <div className="mt-3 rounded-lg border border-line bg-canvas px-4 py-5 text-sm text-ink-muted">
+                No active salesmen are available for {v.companies.join(' or ')}.
+              </div> :
             <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
               {compatibleSalesmen.map((s) => {
               const active = v.salesmanId === String(s.salesmanId);
@@ -253,13 +291,14 @@ export function CreateCustomerDialog({ open, onClose, onCreate }: CreateCustomer
                 <label key={s.salesmanId} className={`flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors duration-150 ${active ? 'border-brand-500 bg-brand-50' : 'border-line hover:bg-canvas'}`}>
                     <input type="radio" name="salesman" value={s.salesmanId} checked={active} onChange={() => setField('salesmanId', String(s.salesmanId))} className="h-4 w-4 text-brand-500 focus:ring-brand-500/30" />
                     <span className="min-w-0">
-                      <span className="block truncate text-sm font-medium text-ink">{s.salesmanName}</span>
+                      <span className="block truncate text-sm font-medium text-ink">{s.user.userName}</span>
                       <span className="block text-xs text-ink-muted">{s.salesmanCode} · {s.company}</span>
                     </span>
                   </label>);
 
             })}
             </div>
+            }
             {e.salesmanId && <p className="mt-1.5 text-xs text-danger-700" role="alert">{e.salesmanId}</p>}
           </fieldset>
           <section className="rounded-lg bg-canvas p-4">
@@ -272,7 +311,7 @@ export function CreateCustomerDialog({ open, onClose, onCreate }: CreateCustomer
             ['Serviced by', v.companies.join(', ')],
             ['Head office', [v.siteName, selectedCity?.name].filter(Boolean).join(', ')],
             ['Primary contact', `${v.contactName} (${v.contactEmail})`],
-            ['Salesman', selectedSalesman?.salesmanName ?? '—'],
+            ['Salesman', selectedSalesman?.user.userName ?? '—'],
             ['Status', v.isActive ? 'Active' : 'Inactive']].
             map(([label, value]) =>
             <div key={label}>
