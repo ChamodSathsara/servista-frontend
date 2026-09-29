@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { PlusIcon, SearchIcon, SearchXIcon, XIcon } from 'lucide-react';
 import { toast } from 'sonner';
-import { createMachine, deleteMachine, getMachine, getMachineModels, getMachines, searchMachines, updateMachine, type MachineModelResponse, type MachineRequest, type MachineResponse } from '../apis/machines';
+import { createMachine, createMachineModel, deleteMachine, getMachine, getMachineModels, getMachines, searchMachines, updateMachine, type MachineModelRequest, type MachineModelResponse, type MachineRequest, type MachineResponse } from '../apis/machines';
 import { getCustomers, type CustomerResponse } from '../apis/customers';
 import { getTechnicians, type TechnicianResponse } from '../apis/technicians';
 import { getSalesmen, type SalesmanResponse } from '../apis/salesmen';
@@ -11,11 +11,13 @@ import { Button } from '../components/ui/Button';
 import { MachinesTable } from '../components/machines/MachinesTable';
 import { MachineDrawer } from '../components/machines/MachineDrawer';
 import { MachineDialog } from '../components/machines/MachineDialog';
+import { MachineModelDialog } from '../components/machineModels/MachineModelDialog';
 
 export function Machines() {
   const [machines, setMachines] = useState<MachineResponse[]>([]); const [customers, setCustomers] = useState<CustomerResponse[]>([]); const [technicians, setTechnicians] = useState<TechnicianResponse[]>([]); const [salesmen, setSalesmen] = useState<SalesmanResponse[]>([]); const [models, setModels] = useState<MachineModelResponse[]>([]);
   const [query, setQuery] = useState(''); const [loading, setLoading] = useState(true); const [error, setError] = useState<string | null>(null); const [searching, setSearching] = useState(false);
   const [selected, setSelected] = useState<MachineResponse | null>(null); const [detailLoading, setDetailLoading] = useState(false); const [detailError, setDetailError] = useState<string | null>(null); const [dialogOpen, setDialogOpen] = useState(false); const [editing, setEditing] = useState<MachineResponse | null>(null); const [deleting, setDeleting] = useState(false);
+  const [modelDialogOpen, setModelDialogOpen] = useState(false);
   const initialSearch = useRef(true);
 
   const load = useCallback(async () => { setLoading(true); setError(null); try { const [machineData, customerData, techData, salesmanData, modelData] = await Promise.all([getMachines(), getCustomers(), getTechnicians(), getSalesmen(), getMachineModels()]); setMachines(machineData); setCustomers(customerData); setTechnicians(techData); setSalesmen(salesmanData); setModels(modelData); } catch (e) { setError(e instanceof Error ? e.message : 'Unable to load machines.'); } finally { setLoading(false); } }, []);
@@ -26,11 +28,13 @@ export function Machines() {
   const openDetails = async (m: MachineResponse) => { setSelected(null); setDetailError(null); setDetailLoading(true); try { setSelected(await getMachine(m.machineId)); } catch (e) { setDetailError(e instanceof Error ? e.message : 'Unable to load machine.'); } finally { setDetailLoading(false); } };
   const save = async (request: Omit<MachineRequest, 'performedBy'>) => { try { const result = editing ? await updateMachine(editing.machineId, { ...request, performedBy: userId() }) : await createMachine({ ...request, performedBy: userId() }); setMachines((p) => editing ? p.map((m) => m.machineId === result.machineId ? result : m) : [result, ...p]); setSelected(result); setDialogOpen(false); setEditing(null); toast.success(editing ? 'Machine updated' : 'Machine created', { description: result.machineReferenceNumber }); } catch (e) { toast.error(e instanceof ApiError || e instanceof Error ? e.message : 'Unable to save machine.'); throw e; } };
   const remove = async (m: MachineResponse) => { if (!window.confirm(`Delete ${m.machineReferenceNumber}? This cannot be undone.`)) return; setDeleting(true); try { await deleteMachine(m.machineId); setMachines((p) => p.filter((x) => x.machineId !== m.machineId)); setSelected(null); toast.success('Machine deleted'); } catch (e) { toast.error(e instanceof Error ? e.message : 'Unable to delete machine.'); } finally { setDeleting(false); } };
+  const addModel = async (request: Omit<MachineModelRequest, 'createdBy'>) => { try { const created = await createMachineModel({ ...request, createdBy: userId() }); setModels((previous) => [...previous, created]); setModelDialogOpen(false); toast.success(`${created.modelNumber} added to model list`); } catch (e) { toast.error(e instanceof Error ? e.message : 'Unable to create model.'); throw e; } };
   return <div className="mx-auto max-w-7xl"><div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><h1 className="text-2xl font-semibold text-ink">Machines</h1><p className="mt-1 text-sm text-ink-muted">{machines.length} machines. Search by reference, serial number or configured machine fields.</p></div><Button icon={<PlusIcon className="h-4 w-4" />} onClick={() => { setEditing(null); setDialogOpen(true); }}>Create machine</Button></div>
     <div className="mt-6 overflow-hidden rounded-xl border border-line bg-white shadow-sm"><div className="border-b border-line p-4"><div className="flex h-10 max-w-xl items-center rounded-lg border border-line focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-500/20"><SearchIcon className="ml-3 h-4 w-4 text-ink-subtle" /><input value={query} onChange={(e)=>setQuery(e.target.value)} placeholder="Search reference or serial number" className="h-full min-w-0 flex-1 bg-transparent px-2.5 text-sm outline-none" />{query && <button onClick={() => void clearSearch()} className="mr-2 p-1 text-ink-subtle" aria-label="Clear search"><XIcon className="h-4 w-4" /></button>}</div></div>
       {loading ? <p className="px-6 py-16 text-center text-sm text-ink-muted">Loading machines…</p> : error ? <div className="px-6 py-16 text-center"><p className="text-sm text-danger-700">{error}</p><Button variant="secondary" className="mt-5" onClick={() => void load()}>Try again</Button></div> : machines.length ? <MachinesTable machines={machines} onSelect={(m)=>void openDetails(m)} /> : <div className="px-6 py-16 text-center"><SearchXIcon className="mx-auto h-8 w-8 text-ink-subtle" /><p className="mt-3 text-sm font-medium">No machines found</p></div>}
       <div className="border-t border-line px-5 py-3 text-xs text-ink-muted">{searching ? 'Searching…' : `Showing ${machines.length} machines`}</div></div>
     <MachineDrawer machine={selected} loading={detailLoading} error={detailError} deleting={deleting} onClose={()=>{setSelected(null);setDetailError(null);}} onEdit={(m)=>{setEditing(m);setDialogOpen(true);}} onDelete={(m)=>void remove(m)} />
-    <MachineDialog open={dialogOpen} machine={editing} customers={customers} technicians={technicians} salesmen={salesmen} models={models} onClose={()=>{setDialogOpen(false);setEditing(null);}} onSave={save} />
+    <MachineDialog open={dialogOpen} machine={editing} customers={customers} technicians={technicians} salesmen={salesmen} models={models} onCreateModel={()=>setModelDialogOpen(true)} onClose={()=>{setDialogOpen(false);setEditing(null);}} onSave={save} />
+    <MachineModelDialog open={modelDialogOpen} model={null} onClose={()=>setModelDialogOpen(false)} onSave={addModel} />
   </div>;
 }

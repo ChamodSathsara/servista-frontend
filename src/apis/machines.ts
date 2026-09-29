@@ -26,7 +26,8 @@ export interface MachineResponse {
   createdBy: number; createdAt: string; updatedBy: number | null; updatedAt: string | null;
 }
 
-export interface MachineModelResponse { modelId: number; company: MachineCompany; manufacturerName: string; modelNumber: string; modelName: string; isActive: boolean }
+export interface MachineModelResponse { modelId: number; company: MachineCompany; manufacturerId: number; manufacturerName: string; machineTypeId: number; machineTypeName: string; modelNumber: string; modelName: string; description: string | null; isActive: boolean; createdAt: string; createdBy: number }
+export interface MachineModelRequest { company: MachineCompany; manufacturerId: number; machineTypeId: number; modelNumber: string; modelName: string; description: string | null; isActive: boolean; createdBy?: number }
 
 export const getMachines = async () => (await api.get<MachineResponse[]>('/api/machines')).data;
 export const searchMachines = async (query: string) => (await api.get<MachineResponse[]>('/api/machines/search', { params: { query } })).data;
@@ -35,3 +36,6 @@ export const createMachine = async (request: MachineRequest) => (await api.post<
 export const updateMachine = async (id: number, request: MachineRequest) => (await api.put<MachineResponse>(`/api/machines/${id}`, request)).data;
 export const deleteMachine = async (id: number) => { await api.delete(`/api/machines/${id}`); };
 export const getMachineModels = async () => (await api.get<MachineModelResponse[]>('/api/machine-models')).data;
+export const createMachineModel = async (request: MachineModelRequest) => (await api.post<MachineModelResponse>('/api/machine-models', request)).data;
+export const updateMachineModel = async (id: number, request: MachineModelRequest) => (await api.put<MachineModelResponse>(`/api/machine-models/${id}`, request)).data;
+export const deleteMachineModel = async (id: number) => { await api.delete(`/api/machine-models/${id}`); };

@@ -54,6 +54,7 @@ export const navSections: NavSection[] = [
   items: [
   { key: 'tech-officers', label: 'Tech Officers', path: '/tech-officers', icon: HardHatIcon, description: 'Field technicians, their skills and job history.' },
   { key: 'machines', label: 'Machines', path: '/machines', icon: PrinterIcon, description: 'Every installed machine across all customer sites, with contract and service status.' },
+  { key: 'machine-models', label: 'Machine Models', path: '/machine-models', icon: PrinterIcon, description: 'Manage the machine model catalogue.' },
   { key: 'parts', label: 'Parts', path: '/parts', icon: PackageIcon, comingSoon: true, description: 'Spare parts inventory, stock levels and parts issued to jobs.' },
   { key: 'breakdowns', label: 'Breakdowns', path: '/breakdowns', icon: TriangleAlertIcon, comingSoon: true, description: 'Log breakdown calls and dispatch the nearest available tech officer.' },
   { key: 'meter-reading', label: 'Meter Reading', path: '/meter-reading', icon: GaugeIcon, comingSoon: true, description: 'Capture monthly meter readings for per-copy and rental billing.' },
