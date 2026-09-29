@@ -33,6 +33,12 @@ export async function login(request: LoginRequest): Promise<LoginResponse> {
 }
 
 export function saveLoginSession(data: LoginResponse, persistent = true): void {
+  // Avoid a stale token in the other storage taking precedence on later API calls.
+  for (const key of ['accessToken', 'refreshToken', 'accessTokenExpiresAt', 'refreshTokenExpiresAt', 'currentUser']) {
+    localStorage.removeItem(key);
+    sessionStorage.removeItem(key);
+  }
+
   const storage = persistent ? localStorage : sessionStorage;
 
   storage.setItem('accessToken', data.accessToken);
