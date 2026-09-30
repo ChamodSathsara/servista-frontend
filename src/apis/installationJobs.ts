@@ -20,8 +20,8 @@ export interface InstallationJobResponse {
   siteName: string;
   machineInvoiceId: number;
   invoiceNumber: string;
-  dealerId: number;
-  repId: number;
+  dealerId: number | null;
+  repId: number | null;
   assignedTechnicianId: number;
   technicianName: string;
   expectedInstallDate: string | null;
@@ -36,3 +36,16 @@ export const getInstallationJobs = async () =>
 
 export const getInstallationJob = async (jobId: number) =>
   (await api.get<InstallationJobResponse>(`/api/installation-jobs/${jobId}`)).data;
+
+export interface CompleteInstallationJobRequest {
+  performedBy: number;
+  note: string | null;
+}
+
+export const completeInstallationJob = async (
+  jobId: number,
+  request: CompleteInstallationJobRequest,
+) => (await api.post<InstallationJobResponse>(
+  `/api/installation-jobs/${jobId}/complete`,
+  request,
+)).data;

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   CalendarDaysIcon,
+  CheckCircle2Icon,
   ChevronRightIcon,
   ClipboardCheckIcon,
   Clock3Icon,
@@ -16,12 +17,16 @@ import { toast } from 'sonner';
 import {
   getInstallationJob,
   getInstallationJobs,
+  completeInstallationJob,
   type InstallationJobResponse,
 } from '../apis/installationJobs';
 import { Button } from '../components/ui/Button';
 import { Drawer } from '../components/ui/Drawer';
+import { Modal } from '../components/ui/Modal';
+import { FormField } from '../components/ui/FormField';
 import { StatusBadge, type BadgeTone } from '../components/ui/StatusBadge';
 import { formatDate } from '../utils/format';
+import { fieldClass } from '../utils/styles';
 
 const statusTone = (status: string): BadgeTone => {
   const value = status.toUpperCase();
@@ -45,6 +50,10 @@ export function InstallationJobs() {
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<InstallationJobResponse | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [completeDialogOpen, setCompleteDialogOpen] = useState(false);
+  const [completionNote, setCompletionNote] = useState('');
+  const [completionError, setCompletionError] = useState<string | null>(null);
+  const [completing, setCompleting] = useState(false);
 
   const loadJobs = useCallback(async () => {
     setLoading(true);
@@ -104,6 +113,57 @@ export function InstallationJobs() {
       toast.error(loadError instanceof Error ? loadError.message : 'Unable to load installation job.');
     } finally {
       setDetailLoading(false);
+    }
+  };
+
+  const currentUserId = () => {
+    const storedUser = localStorage.getItem('currentUser') ?? sessionStorage.getItem('currentUser');
+    try {
+      const userId = storedUser ? Number((JSON.parse(storedUser) as { userId?: number }).userId) : 0;
+      if (!userId) throw new Error();
+      return userId;
+    } catch {
+      throw new Error('Your user session is missing. Please sign in again.');
+    }
+  };
+
+  const showCompleteDialog = () => {
+    if (!selected || selected.status.toUpperCase() !== 'VERIFIED') return;
+    setCompletionNote('');
+    setCompletionError(null);
+    setCompleteDialogOpen(true);
+  };
+
+  const completeJob = async () => {
+    if (!selected) return;
+    const note = completionNote.trim();
+    if (note.length > 255) {
+      setCompletionError('Note must be 255 characters or fewer.');
+      return;
+    }
+
+    setCompleting(true);
+    setCompletionError(null);
+    try {
+      const completed = await completeInstallationJob(selected.installationJobId, {
+        performedBy: currentUserId(),
+        note: note || null,
+      });
+      setJobs((current) => current.map((job) =>
+        job.installationJobId === completed.installationJobId ? completed : job,
+      ));
+      setSelected(completed);
+      setCompleteDialogOpen(false);
+      setCompletionNote('');
+      toast.success(`${completed.jobNumber} completed successfully`);
+    } catch (completeError) {
+      const message = completeError instanceof Error
+        ? completeError.message
+        : 'Unable to complete the installation job.';
+      setCompletionError(message);
+      toast.error(message);
+    } finally {
+      setCompleting(false);
     }
   };
 
@@ -219,6 +279,21 @@ export function InstallationJobs() {
                 <p className="mt-1 text-sm text-ink-muted">{selected.customerName}</p>
               </div>
 
+              {selected.status.toUpperCase() === 'VERIFIED' && (
+                <Button
+                  className="mt-5"
+                  icon={<CheckCircle2Icon className="h-4 w-4" />}
+                  onClick={showCompleteDialog}
+                >
+                  Complete installation
+                </Button>
+              )}
+              {!['VERIFIED', 'COMPLETED'].includes(selected.status.toUpperCase()) && (
+                <p className="mt-5 rounded-lg border border-warning-600/20 bg-warning-50 px-4 py-3 text-sm text-warning-700">
+                  This job must be verified before it can be completed. Current status: {statusLabel(selected.status)}.
+                </p>
+              )}
+
               <div className="mt-6 grid gap-3 sm:grid-cols-2">
                 <div className="rounded-lg border border-line bg-canvas/50 p-4">
                   <MapPinIcon className="h-4 w-4 text-brand-600" />
@@ -289,6 +364,53 @@ export function InstallationJobs() {
           )}
         </div>
       </Drawer>
+
+      <Modal
+        open={completeDialogOpen}
+        onClose={() => { if (!completing) setCompleteDialogOpen(false); }}
+        title="Complete installation job"
+        description={selected ? `${selected.jobNumber} · ${selected.customerName}` : undefined}
+        widthClass="max-w-lg"
+        footer={(
+          <div className="flex justify-end gap-3">
+            <Button variant="ghost" disabled={completing} onClick={() => setCompleteDialogOpen(false)}>Cancel</Button>
+            <Button
+              loading={completing}
+              icon={<CheckCircle2Icon className="h-4 w-4" />}
+              onClick={() => void completeJob()}
+            >
+              Complete job
+            </Button>
+          </div>
+        )}
+      >
+        <div className="space-y-4">
+          <p className="rounded-lg border border-success-600/20 bg-success-50 px-4 py-3 text-sm text-success-700">
+            This will change the installation status from Verified to Completed and add a status-history record.
+          </p>
+          <FormField
+            label="Completion note"
+            htmlFor="installation-completion-note"
+            error={completionError ?? undefined}
+            hint="Optional. Maximum 255 characters."
+            action={<span className="text-xs text-ink-subtle">{completionNote.length}/255</span>}
+          >
+            <textarea
+              id="installation-completion-note"
+              value={completionNote}
+              maxLength={255}
+              rows={4}
+              disabled={completing}
+              placeholder="Installation completed and verified successfully"
+              onChange={(event) => {
+                setCompletionNote(event.target.value);
+                setCompletionError(null);
+              }}
+              className={`${fieldClass(!!completionError)} resize-none py-2`}
+            />
+          </FormField>
+        </div>
+      </Modal>
     </div>
   );
 }
