@@ -13,6 +13,7 @@ import {
   UserCogIcon,
   LandmarkIcon,
   CalendarCheckIcon,
+  WrenchIcon,
   ClipboardListIcon,
   MessageSquareIcon } from
 'lucide-react';
@@ -56,6 +57,7 @@ export const navSections: NavSection[] = [
   { key: 'machines', label: 'Machines', path: '/machines', icon: PrinterIcon, description: 'Every installed machine across all customer sites, with contract and service status.' },
   { key: 'machine-models', label: 'Machine Models', path: '/machine-models', icon: PrinterIcon, description: 'Manage the machine model catalogue.' },
   { key: 'machine-invoice', label: 'Machine Invoices', path: '/machine-invoice', icon: FileTextIcon, description: 'Manage machine sales invoices.' },
+  { key: 'installation-job', label: 'Installation Jobs', path: '/installation-job', icon: WrenchIcon, description: 'Track machine installations, assignments and status history.' },
   { key: 'manufacturers', label: 'Manufacturers', path: '/manufacturers', icon: Building2Icon, description: 'Manage machine manufacturers.' },
   { key: 'machine-types', label: 'Machine Types', path: '/machine-types', icon: PackageIcon, description: 'Manage machine categories and types.' },
   { key: 'cities', label: 'Cities', path: '/cities', icon: Building2Icon, description: 'Manage cities by service area.' },
