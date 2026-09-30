@@ -1,4 +1,4 @@
-import { api, ApiError } from './http';
+import { api, ApiError, setActiveAccessToken } from './http';
 
 export { ApiError } from './http';
 
@@ -41,6 +41,7 @@ export function saveLoginSession(data: LoginResponse, persistent = true): void {
 
   const storage = persistent ? localStorage : sessionStorage;
 
+  // Keep only the raw access token returned by the latest successful login.
   storage.setItem('accessToken', data.accessToken);
   storage.setItem('refreshToken', data.refreshToken);
   storage.setItem('accessTokenExpiresAt', data.expiresAt);
@@ -54,4 +55,15 @@ export function saveLoginSession(data: LoginResponse, persistent = true): void {
       role: data.role,
     }),
   );
+
+  // Make the new token effective immediately for requests made by this Axios instance.
+  setActiveAccessToken(data.accessToken);
+}
+
+export function clearLoginSession(): void {
+  for (const key of ['accessToken', 'refreshToken', 'accessTokenExpiresAt', 'refreshTokenExpiresAt', 'currentUser']) {
+    localStorage.removeItem(key);
+    sessionStorage.removeItem(key);
+  }
+  setActiveAccessToken(null);
 }

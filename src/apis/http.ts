@@ -24,6 +24,29 @@ export const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+let activeAccessToken: string | null = null;
+
+export function setActiveAccessToken(accessToken: string | null): void {
+  activeAccessToken = accessToken?.trim().replace(/^Bearer\s+/i, '') || null;
+
+  if (activeAccessToken) {
+    api.defaults.headers.common.Authorization = `Bearer ${activeAccessToken}`;
+  } else {
+    delete api.defaults.headers.common.Authorization;
+  }
+}
+
+export function getBearerAuthorization(): string | undefined {
+  if (typeof window === 'undefined') return undefined;
+  const latestToken = activeAccessToken
+    ?? localStorage.getItem('accessToken')
+    ?? sessionStorage.getItem('accessToken');
+  if (!latestToken) return undefined;
+
+  const token = latestToken.trim().replace(/^Bearer\s+/i, '');
+  return token ? `Bearer ${token}` : undefined;
+}
+
 const publicApiPaths = new Set([
   '/api/auth/login',
   '/api/auth/refresh',
@@ -40,9 +63,9 @@ api.interceptors.request.use((config) => {
 
   if (publicApiPaths.has(requestPath)) {
     delete config.headers.Authorization;
-  } else if (typeof window !== 'undefined') {
-    const accessToken = localStorage.getItem('accessToken') ?? sessionStorage.getItem('accessToken');
-    if (accessToken) config.headers.Authorization = `Bearer ${accessToken}`;
+  } else {
+    const authorization = getBearerAuthorization();
+    if (authorization) config.headers.Authorization = authorization;
   }
 
   return config;

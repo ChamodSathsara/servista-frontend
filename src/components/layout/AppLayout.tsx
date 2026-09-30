@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronLeftIcon, MenuIcon } from 'lucide-react';
 import { Sidebar, LOGO_URL, LOGO_W, LOGO_H } from './Sidebar';
 import { easeOut } from '../../utils/styles';
+import { clearLoginSession } from '../../apis/auth';
 
 const COLLAPSE_KEY = 'erp.sidebarCollapsed';
 
@@ -55,7 +56,10 @@ export function AppLayout({ children }: { children: ReactNode }) {
     setMobileOpen(false);
   }
 
-  const handleSignOut = () => router.push('/login');
+  const handleSignOut = () => {
+    clearLoginSession();
+    router.replace('/login');
+  };
 
   return (
     <div className="flex min-h-screen w-full bg-canvas">
