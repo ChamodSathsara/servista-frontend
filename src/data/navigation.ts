@@ -46,7 +46,7 @@ export const navSections: NavSection[] = [
   { key: 'coordinator', label: 'Coordinators', path: '/coordinator', icon: UserCogIcon, description: 'Manage coordinators, areas and access.' },
   { key: 'finance', label: 'Finance', path: '/finance', icon: LandmarkIcon, description: 'Manage finance users and company access.' },
   { key: 'estimates', label: 'Estimates', path: '/estimates', icon: FileTextIcon, comingSoon: true, description: 'Prepare and send repair and supply estimates for customer approval.' },
-  { key: 'new-sales', label: 'New Sales', path: '/new-sales', icon: ShoppingCartIcon, comingSoon: true, description: 'Record new machine sales and hand them over for installation.' }]
+  { key: 'new-sales', label: 'New Sales', path: '/new-sales', icon: ShoppingCartIcon, description: 'Record new machine sales and hand them over for installation.' }]
 
 },
 {
