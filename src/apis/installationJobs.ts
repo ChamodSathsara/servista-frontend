@@ -1,9 +1,11 @@
 import { api } from './http';
 
+export type InstallationJobStatus = 'ASSIGNED' | 'IN_PROGRESS' | 'SUBMITTED' | 'VERIFIED' | 'COMPLETED' | 'REJECTED' | 'CANCELLED';
+
 export interface InstallationStatusHistory {
   installationStatusHistoryId: number;
   previousStatus: string | null;
-  newStatus: string;
+  newStatus: InstallationJobStatus;
   changedAt: string;
   changedBy: number;
   note: string | null;
@@ -25,7 +27,7 @@ export interface InstallationJobResponse {
   assignedTechnicianId: number;
   technicianName: string;
   expectedInstallDate: string | null;
-  status: string;
+  status: InstallationJobStatus;
   createdBy: number;
   createdAt: string;
   statusHistory: InstallationStatusHistory[];

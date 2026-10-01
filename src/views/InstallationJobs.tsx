@@ -20,6 +20,7 @@ import {
   completeInstallationJob,
   type InstallationJobResponse,
 } from '../apis/installationJobs';
+import { createInstallationSubmission, type AgreementTypeRequested } from '../apis/installationSubmissions';
 import { Button } from '../components/ui/Button';
 import { Drawer } from '../components/ui/Drawer';
 import { Modal } from '../components/ui/Modal';
@@ -42,6 +43,8 @@ const statusLabel = (status: string) =>
 
 const displayDate = (value: string | null) => (value ? formatDate(value) : '—');
 
+const submittableStatuses = new Set(['ASSIGNED', 'IN_PROGRESS', 'REJECTED']);
+
 export function InstallationJobs() {
   const [jobs, setJobs] = useState<InstallationJobResponse[]>([]);
   const [query, setQuery] = useState('');
@@ -54,6 +57,17 @@ export function InstallationJobs() {
   const [completionNote, setCompletionNote] = useState('');
   const [completionError, setCompletionError] = useState<string | null>(null);
   const [completing, setCompleting] = useState(false);
+  const [submissionDialogOpen, setSubmissionDialogOpen] = useState(false);
+  const [machineId, setMachineId] = useState('');
+  const [modelId, setModelId] = useState('');
+  const [siteContactId, setSiteContactId] = useState('');
+  const [installDate, setInstallDate] = useState('');
+  const [initialMeterReading, setInitialMeterReading] = useState('');
+  const [agreementType, setAgreementType] = useState<AgreementTypeRequested | ''>('');
+  const [warrantyNote, setWarrantyNote] = useState('');
+  const [submissionStatusNote, setSubmissionStatusNote] = useState('Installation submitted by technician');
+  const [submissionErrors, setSubmissionErrors] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState(false);
 
   const loadJobs = useCallback(async () => {
     setLoading(true);
@@ -127,8 +141,9 @@ export function InstallationJobs() {
     }
   };
 
-  const showCompleteDialog = () => {
-    if (!selected || selected.status.toUpperCase() !== 'VERIFIED') return;
+  const showCompleteDialog = (job: InstallationJobResponse | null = selected) => {
+    if (!job || job.status !== 'VERIFIED') return;
+    setSelected(job);
     setCompletionNote('');
     setCompletionError(null);
     setCompleteDialogOpen(true);
@@ -164,6 +179,66 @@ export function InstallationJobs() {
       toast.error(message);
     } finally {
       setCompleting(false);
+    }
+  };
+
+  const showSubmissionDialog = (job: InstallationJobResponse | null = selected) => {
+    if (!job || !submittableStatuses.has(job.status)) return;
+    setSelected(job);
+    setMachineId('');
+    setModelId('');
+    setSiteContactId('');
+    setInstallDate(job.expectedInstallDate ?? new Date().toISOString().slice(0, 10));
+    setInitialMeterReading('');
+    setAgreementType('');
+    setWarrantyNote('');
+    setSubmissionStatusNote('Installation submitted by technician');
+    setSubmissionErrors({});
+    setSubmissionDialogOpen(true);
+  };
+
+  const submitInstallation = async () => {
+    if (!selected) return;
+    const errors: Record<string, string> = {};
+    if (!Number(machineId)) errors.machineId = 'Machine ID is required.';
+    if (!Number(modelId)) errors.modelId = 'Model ID is required.';
+    if (!Number(siteContactId)) errors.siteContactId = 'Site contact ID is required.';
+    if (!installDate) errors.installDate = 'Install date is required.';
+    if (initialMeterReading && Number(initialMeterReading) < 0) errors.initialMeterReading = 'Meter reading cannot be negative.';
+    if (warrantyNote.length > 255) errors.warrantyNote = 'Maximum 255 characters.';
+    if (submissionStatusNote.length > 255) errors.statusNote = 'Maximum 255 characters.';
+    setSubmissionErrors(errors);
+    if (Object.keys(errors).length) return;
+
+    setSubmitting(true);
+    try {
+      const submission = await createInstallationSubmission({
+        installationJobId: selected.installationJobId,
+        machineId: Number(machineId),
+        modelId: Number(modelId),
+        customerSiteId: selected.customerSiteId,
+        siteContactId: Number(siteContactId),
+        installDate,
+        initialMeterReading: initialMeterReading ? Number(initialMeterReading) : null,
+        agreementTypeRequested: agreementType || null,
+        warrantyNote: warrantyNote.trim() || null,
+        submittedBy: currentUserId(),
+        verificationStatus: 'PENDING_VERIFICATION',
+        verifiedBy: null,
+        verificationNote: null,
+        statusNote: submissionStatusNote.trim() || null,
+      });
+      const updated = await getInstallationJob(selected.installationJobId);
+      setJobs((current) => current.map((job) => job.installationJobId === updated.installationJobId ? updated : job));
+      setSelected(updated);
+      setSubmissionDialogOpen(false);
+      toast.success(`${submission.jobNumber} submitted successfully`);
+    } catch (submissionError) {
+      const message = submissionError instanceof Error ? submissionError.message : 'Unable to submit the installation.';
+      setSubmissionErrors({ form: message });
+      toast.error(message);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -223,6 +298,7 @@ export function InstallationJobs() {
                   <th className="px-5 py-3 font-medium">Technician</th>
                   <th className="px-5 py-3 font-medium">Expected date</th>
                   <th className="px-5 py-3 font-medium">Status</th>
+                  <th className="px-5 py-3 text-right font-medium">Action</th>
                   <th className="w-10" />
                 </tr>
               </thead>
@@ -244,6 +320,21 @@ export function InstallationJobs() {
                     <td className="px-5 py-3.5 text-ink-muted">{job.technicianName || '—'}</td>
                     <td className="px-5 py-3.5 text-ink-muted">{displayDate(job.expectedInstallDate)}</td>
                     <td className="px-5 py-3.5"><StatusBadge tone={statusTone(job.status)} label={statusLabel(job.status)} /></td>
+                    <td className="px-5 py-3.5 text-right">
+                      {submittableStatuses.has(job.status) ? (
+                        <Button className="h-8 px-3" onClick={(event) => { event.stopPropagation(); showSubmissionDialog(job); }}>
+                          Submit installation
+                        </Button>
+                      ) : job.status === 'VERIFIED' ? (
+                        <Button className="h-8 px-3" onClick={(event) => { event.stopPropagation(); showCompleteDialog(job); }}>
+                          Complete
+                        </Button>
+                      ) : (
+                        <span className="text-xs font-medium text-ink-muted">
+                          {statusLabel(job.status)}
+                        </span>
+                      )}
+                    </td>
                     <td className="pr-4"><ChevronRightIcon className="h-4 w-4 text-ink-subtle group-hover:text-brand-700" /></td>
                   </tr>
                 ))}
@@ -279,19 +370,13 @@ export function InstallationJobs() {
                 <p className="mt-1 text-sm text-ink-muted">{selected.customerName}</p>
               </div>
 
-              {selected.status.toUpperCase() === 'VERIFIED' && (
-                <Button
-                  className="mt-5"
-                  icon={<CheckCircle2Icon className="h-4 w-4" />}
-                  onClick={showCompleteDialog}
-                >
+              {submittableStatuses.has(selected.status) && (
+                <Button className="mt-5" onClick={() => showSubmissionDialog()}>Submit installation</Button>
+              )}
+              {selected.status === 'VERIFIED' && (
+                <Button className="mt-5" icon={<CheckCircle2Icon className="h-4 w-4" />} onClick={() => showCompleteDialog()}>
                   Complete installation
                 </Button>
-              )}
-              {!['VERIFIED', 'COMPLETED'].includes(selected.status.toUpperCase()) && (
-                <p className="mt-5 rounded-lg border border-warning-600/20 bg-warning-50 px-4 py-3 text-sm text-warning-700">
-                  This job must be verified before it can be completed. Current status: {statusLabel(selected.status)}.
-                </p>
               )}
 
               <div className="mt-6 grid gap-3 sm:grid-cols-2">
@@ -409,6 +494,28 @@ export function InstallationJobs() {
               className={`${fieldClass(!!completionError)} resize-none py-2`}
             />
           </FormField>
+        </div>
+      </Modal>
+
+      <Modal
+        open={submissionDialogOpen}
+        onClose={() => { if (!submitting) setSubmissionDialogOpen(false); }}
+        title="Submit installation"
+        description={selected ? `${selected.jobNumber} · ${selected.customerName}` : undefined}
+        widthClass="max-w-2xl"
+        footer={<div className="flex justify-end gap-3"><Button variant="ghost" disabled={submitting} onClick={() => setSubmissionDialogOpen(false)}>Cancel</Button><Button loading={submitting} onClick={() => void submitInstallation()}>Submit installation</Button></div>}
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          {submissionErrors.form && <p className="rounded-lg bg-danger-50 px-4 py-3 text-sm text-danger-700 sm:col-span-2">{submissionErrors.form}</p>}
+          <FormField label="Machine ID" htmlFor="submission-machine-id" required error={submissionErrors.machineId}><input id="submission-machine-id" type="number" min="1" value={machineId} disabled={submitting} onChange={(event) => { setMachineId(event.target.value); setSubmissionErrors((current) => ({ ...current, machineId: '' })); }} className={fieldClass(!!submissionErrors.machineId)} /></FormField>
+          <FormField label="Model ID" htmlFor="submission-model-id" required error={submissionErrors.modelId}><input id="submission-model-id" type="number" min="1" value={modelId} disabled={submitting} onChange={(event) => { setModelId(event.target.value); setSubmissionErrors((current) => ({ ...current, modelId: '' })); }} className={fieldClass(!!submissionErrors.modelId)} /></FormField>
+          <FormField label="Customer site ID" htmlFor="submission-site-id" required hint="Filled from the installation job."><input id="submission-site-id" value={selected?.customerSiteId ?? ''} disabled className={fieldClass()} /></FormField>
+          <FormField label="Site contact ID" htmlFor="submission-contact-id" required error={submissionErrors.siteContactId}><input id="submission-contact-id" type="number" min="1" value={siteContactId} disabled={submitting} onChange={(event) => { setSiteContactId(event.target.value); setSubmissionErrors((current) => ({ ...current, siteContactId: '' })); }} className={fieldClass(!!submissionErrors.siteContactId)} /></FormField>
+          <FormField label="Installation date" htmlFor="submission-install-date" required error={submissionErrors.installDate}><input id="submission-install-date" type="date" value={installDate} disabled={submitting} onChange={(event) => { setInstallDate(event.target.value); setSubmissionErrors((current) => ({ ...current, installDate: '' })); }} className={fieldClass(!!submissionErrors.installDate)} /></FormField>
+          <FormField label="Initial meter reading" htmlFor="submission-meter" error={submissionErrors.initialMeterReading}><input id="submission-meter" type="number" min="0" value={initialMeterReading} disabled={submitting} onChange={(event) => { setInitialMeterReading(event.target.value); setSubmissionErrors((current) => ({ ...current, initialMeterReading: '' })); }} className={fieldClass(!!submissionErrors.initialMeterReading)} /></FormField>
+          <FormField label="Agreement requested" htmlFor="submission-agreement"><select id="submission-agreement" value={agreementType} disabled={submitting} onChange={(event) => setAgreementType(event.target.value as AgreementTypeRequested | '')} className={fieldClass()}><option value="">None</option><option value="FS">FS</option><option value="MA">MA</option><option value="NS">NS</option></select></FormField>
+          <FormField label="Warranty note" htmlFor="submission-warranty-note" error={submissionErrors.warrantyNote} className="sm:col-span-2" action={<span className="text-xs text-ink-subtle">{warrantyNote.length}/255</span>}><textarea id="submission-warranty-note" value={warrantyNote} maxLength={255} rows={3} disabled={submitting} onChange={(event) => { setWarrantyNote(event.target.value); setSubmissionErrors((current) => ({ ...current, warrantyNote: '' })); }} className={`${fieldClass(!!submissionErrors.warrantyNote)} resize-none py-2`} /></FormField>
+          <FormField label="Status history note" htmlFor="submission-status-note" error={submissionErrors.statusNote} className="sm:col-span-2" hint="Optional. Maximum 255 characters." action={<span className="text-xs text-ink-subtle">{submissionStatusNote.length}/255</span>}><textarea id="submission-status-note" value={submissionStatusNote} maxLength={255} rows={3} disabled={submitting} onChange={(event) => { setSubmissionStatusNote(event.target.value); setSubmissionErrors((current) => ({ ...current, statusNote: '' })); }} className={`${fieldClass(!!submissionErrors.statusNote)} resize-none py-2`} /></FormField>
         </div>
       </Modal>
     </div>
