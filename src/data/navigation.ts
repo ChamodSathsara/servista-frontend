@@ -63,7 +63,7 @@ export const navSections: NavSection[] = [
   { key: 'cities', label: 'Cities', path: '/cities', icon: Building2Icon, description: 'Manage cities by service area.' },
   { key: 'parts', label: 'Parts', path: '/parts', icon: PackageIcon, comingSoon: true, description: 'Spare parts inventory, stock levels and parts issued to jobs.' },
   { key: 'breakdowns', label: 'Breakdowns', path: '/breakdowns', icon: TriangleAlertIcon, description: 'Log breakdown calls and dispatch the nearest available tech officer.' },
-  { key: 'meter-reading', label: 'Meter Reading', path: '/meter-reading', icon: GaugeIcon, comingSoon: true, description: 'Capture monthly meter readings for per-copy and rental billing.' },
+  { key: 'meter-reading', label: 'Meter Reading', path: '/meter-reading', icon: GaugeIcon, description: 'Find machine meter-reading history for service and billing.' },
   { key: 'site-visits', label: 'Site Visits', path: '/site-visits', icon: CalendarCheckIcon, description: 'View preventive service schedules by agreement or machine.' }]
 
 },
