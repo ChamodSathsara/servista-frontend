@@ -21,6 +21,7 @@ import {
   type InstallationJobResponse,
 } from '../apis/installationJobs';
 import { createInstallationSubmission, type AgreementTypeRequested } from '../apis/installationSubmissions';
+import { getMachines, type MachineResponse } from '../apis/machines';
 import { Button } from '../components/ui/Button';
 import { Drawer } from '../components/ui/Drawer';
 import { Modal } from '../components/ui/Modal';
@@ -47,6 +48,7 @@ const submittableStatuses = new Set(['ASSIGNED', 'IN_PROGRESS', 'REJECTED']);
 
 export function InstallationJobs() {
   const [jobs, setJobs] = useState<InstallationJobResponse[]>([]);
+  const [machines, setMachines] = useState<MachineResponse[]>([]);
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('ALL');
   const [loading, setLoading] = useState(true);
@@ -61,6 +63,8 @@ export function InstallationJobs() {
   const [machineId, setMachineId] = useState('');
   const [modelId, setModelId] = useState('');
   const [siteContactId, setSiteContactId] = useState('');
+  const [submissionMachine, setSubmissionMachine] = useState<MachineResponse | null>(null);
+  const [contactDetailsOpen, setContactDetailsOpen] = useState(false);
   const [installDate, setInstallDate] = useState('');
   const [initialMeterReading, setInitialMeterReading] = useState('');
   const [agreementType, setAgreementType] = useState<AgreementTypeRequested | ''>('');
@@ -73,7 +77,9 @@ export function InstallationJobs() {
     setLoading(true);
     setError(null);
     try {
-      setJobs(await getInstallationJobs());
+      const [jobResults, machineResults] = await Promise.all([getInstallationJobs(), getMachines()]);
+      setJobs(jobResults);
+      setMachines(machineResults);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Unable to load installation jobs.');
     } finally {
@@ -83,9 +89,9 @@ export function InstallationJobs() {
 
   useEffect(() => {
     let cancelled = false;
-    getInstallationJobs()
-      .then((result) => {
-        if (!cancelled) setJobs(result);
+    Promise.all([getInstallationJobs(), getMachines()])
+      .then(([jobResults, machineResults]) => {
+        if (!cancelled) { setJobs(jobResults); setMachines(machineResults); }
       })
       .catch((loadError: unknown) => {
         if (!cancelled) {
@@ -184,10 +190,15 @@ export function InstallationJobs() {
 
   const showSubmissionDialog = (job: InstallationJobResponse | null = selected) => {
     if (!job || !submittableStatuses.has(job.status)) return;
+    const machine = machines.find((item) =>
+      item.machineInvoiceId === job.machineInvoiceId && item.customerSiteId === job.customerSiteId,
+    ) ?? null;
     setSelected(job);
-    setMachineId('');
-    setModelId('');
-    setSiteContactId('');
+    setSubmissionMachine(machine);
+    setMachineId(machine ? String(machine.machineId) : '');
+    setModelId(machine ? String(machine.modelId) : '');
+    setSiteContactId(machine ? String(machine.siteContactId) : '');
+    setContactDetailsOpen(false);
     setInstallDate(job.expectedInstallDate ?? new Date().toISOString().slice(0, 10));
     setInitialMeterReading('');
     setAgreementType('');
@@ -507,10 +518,11 @@ export function InstallationJobs() {
       >
         <div className="grid gap-4 sm:grid-cols-2">
           {submissionErrors.form && <p className="rounded-lg bg-danger-50 px-4 py-3 text-sm text-danger-700 sm:col-span-2">{submissionErrors.form}</p>}
-          <FormField label="Machine ID" htmlFor="submission-machine-id" required error={submissionErrors.machineId}><input id="submission-machine-id" type="number" min="1" value={machineId} disabled={submitting} onChange={(event) => { setMachineId(event.target.value); setSubmissionErrors((current) => ({ ...current, machineId: '' })); }} className={fieldClass(!!submissionErrors.machineId)} /></FormField>
-          <FormField label="Model ID" htmlFor="submission-model-id" required error={submissionErrors.modelId}><input id="submission-model-id" type="number" min="1" value={modelId} disabled={submitting} onChange={(event) => { setModelId(event.target.value); setSubmissionErrors((current) => ({ ...current, modelId: '' })); }} className={fieldClass(!!submissionErrors.modelId)} /></FormField>
+          <FormField label="Serial number" htmlFor="submission-machine-id" required error={submissionErrors.machineId} hint="Filled from the machine assigned to this installation job."><input id="submission-machine-id" value={submissionMachine?.serialNumber ?? ''} disabled className={fieldClass(!!submissionErrors.machineId)} /></FormField>
+          <FormField label="Model name" htmlFor="submission-model-id" required error={submissionErrors.modelId} hint="Filled from the machine model."><input id="submission-model-id" value={submissionMachine ? `${submissionMachine.modelName} · ${submissionMachine.modelNumber}` : ''} disabled className={fieldClass(!!submissionErrors.modelId)} /></FormField>
           <FormField label="Customer site ID" htmlFor="submission-site-id" required hint="Filled from the installation job."><input id="submission-site-id" value={selected?.customerSiteId ?? ''} disabled className={fieldClass()} /></FormField>
-          <FormField label="Site contact ID" htmlFor="submission-contact-id" required error={submissionErrors.siteContactId}><input id="submission-contact-id" type="number" min="1" value={siteContactId} disabled={submitting} onChange={(event) => { setSiteContactId(event.target.value); setSubmissionErrors((current) => ({ ...current, siteContactId: '' })); }} className={fieldClass(!!submissionErrors.siteContactId)} /></FormField>
+          <FormField label="Site contact ID" htmlFor="submission-contact-id" required error={submissionErrors.siteContactId} action={submissionMachine ? <button type="button" onClick={() => setContactDetailsOpen((open) => !open)} className="text-xs font-medium text-brand-700 hover:text-brand-800">{contactDetailsOpen ? 'Hide details' : 'View details'}</button> : undefined}><input id="submission-contact-id" value={siteContactId} disabled className={fieldClass(!!submissionErrors.siteContactId)} /></FormField>
+          {contactDetailsOpen && submissionMachine && <div className="rounded-lg border border-line bg-canvas p-4 sm:col-span-2"><div className="grid gap-4 text-sm sm:grid-cols-2"><div><p className="text-xs text-ink-subtle">Contact name</p><p className="mt-1 font-medium text-ink">{submissionMachine.contactName}</p></div><div><p className="text-xs text-ink-subtle">Designation</p><p className="mt-1 text-ink">{submissionMachine.designation || '—'}</p></div><div><p className="text-xs text-ink-subtle">Mobile number</p><p className="mt-1 text-ink">{submissionMachine.mobileNumber || '—'}</p></div><div><p className="text-xs text-ink-subtle">Email</p><p className="mt-1 break-all text-ink">{submissionMachine.email}</p></div><div><p className="text-xs text-ink-subtle">Primary contact</p><p className="mt-1 text-ink">{submissionMachine.isPrimaryContact ? 'Yes' : 'No'}</p></div><div><p className="text-xs text-ink-subtle">Status</p><p className="mt-1 text-ink">{submissionMachine.contactActive ? 'Active' : 'Inactive'}</p></div></div></div>}
           <FormField label="Installation date" htmlFor="submission-install-date" required error={submissionErrors.installDate}><input id="submission-install-date" type="date" value={installDate} disabled={submitting} onChange={(event) => { setInstallDate(event.target.value); setSubmissionErrors((current) => ({ ...current, installDate: '' })); }} className={fieldClass(!!submissionErrors.installDate)} /></FormField>
           <FormField label="Initial meter reading" htmlFor="submission-meter" error={submissionErrors.initialMeterReading}><input id="submission-meter" type="number" min="0" value={initialMeterReading} disabled={submitting} onChange={(event) => { setInitialMeterReading(event.target.value); setSubmissionErrors((current) => ({ ...current, initialMeterReading: '' })); }} className={fieldClass(!!submissionErrors.initialMeterReading)} /></FormField>
           <FormField label="Agreement requested" htmlFor="submission-agreement"><select id="submission-agreement" value={agreementType} disabled={submitting} onChange={(event) => setAgreementType(event.target.value as AgreementTypeRequested | '')} className={fieldClass()}><option value="">None</option><option value="FS">FS</option><option value="MA">MA</option><option value="NS">NS</option></select></FormField>
