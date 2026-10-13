@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   CalendarCheckIcon,
+  ChevronDownIcon,
   ChevronRightIcon,
   Clock3Icon,
   FileTextIcon,
@@ -61,6 +62,7 @@ export function SiteVisits() {
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<ServiceScheduleResponse | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [expandedMachines, setExpandedMachines] = useState<Set<number>>(() => new Set());
   const [meterCounterTypes, setMeterCounterTypes] = useState<MeterCounterTypeResponse[]>([]);
   const [solutionTypes, setSolutionTypes] = useState<SolutionTypeResponse[]>([]);
   const [startOpen, setStartOpen] = useState(false);
@@ -143,6 +145,28 @@ export function SiteVisits() {
       return matchesStatus && matchesQuery;
     });
   }, [query, status, visits]);
+
+  const machineGroups = useMemo(() => {
+    const groups = new Map<number, ServiceScheduleResponse[]>();
+    filteredVisits.forEach((visit) => {
+      const machineVisits = groups.get(visit.machineId) ?? [];
+      machineVisits.push(visit);
+      groups.set(visit.machineId, machineVisits);
+    });
+    return Array.from(groups.entries()).map(([machineId, machineVisits]) => ({
+      machineId,
+      machineReferenceNumber: machineVisits[0].machineReferenceNumber,
+      visits: machineVisits.sort((a, b) => a.expectedVisitDate.localeCompare(b.expectedVisitDate)),
+    }));
+  }, [filteredVisits]);
+
+  const toggleMachine = (machineId: number) => {
+    setExpandedMachines((current) => {
+      const next = new Set(current);
+      if (next.has(machineId)) next.delete(machineId); else next.add(machineId);
+      return next;
+    });
+  };
 
   const openVisit = async (visit: ServiceScheduleResponse) => {
     setSelected(null);
@@ -292,7 +316,7 @@ export function SiteVisits() {
             <p className="text-sm text-danger-700">{error}</p>
             <Button variant="secondary" className="mt-5" onClick={() => void loadAll()}>Load all visits</Button>
           </div>
-        ) : filteredVisits.length ? (
+        ) : machineGroups.length ? (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[920px] text-left text-sm">
               <thead className="border-b border-line bg-canvas/60 text-xs text-ink-muted">
@@ -308,9 +332,25 @@ export function SiteVisits() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
-                {filteredVisits.map((visit) => (
+                {machineGroups.flatMap((group) => {
+                  const expanded = expandedMachines.has(group.machineId);
+                  const completedCount = group.visits.filter((visit) => visit.status === 'COMPLETED').length;
+                  const rows = [
+                    <tr key={`machine-${group.machineId}`} className="bg-canvas/50 hover:bg-brand-50/60">
+                      <td colSpan={8} className="p-0">
+                        <button type="button" onClick={() => toggleMachine(group.machineId)} aria-expanded={expanded} className="flex w-full items-center gap-3 px-5 py-4 text-left">
+                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-line bg-white text-brand-700">{expanded ? <ChevronDownIcon className="h-4 w-4" /> : <ChevronRightIcon className="h-4 w-4" />}</span>
+                          <PrinterIcon className="h-5 w-5 shrink-0 text-brand-600" />
+                          <span className="min-w-0 flex-1"><span className="block truncate font-mono font-semibold text-ink">{group.machineReferenceNumber}</span><span className="block text-xs text-ink-subtle">Machine ID {group.machineId}</span></span>
+                          <span className="shrink-0 text-right"><span className="block text-sm font-medium text-ink">{group.visits.length} {group.visits.length === 1 ? 'visit' : 'visits'}</span><span className="block text-xs text-ink-subtle">{completedCount} completed</span></span>
+                        </button>
+                      </td>
+                    </tr>,
+                  ];
+                  if (!expanded) return rows;
+                  return rows.concat(group.visits.map((visit) => (
                   <tr key={visit.serviceScheduleId} onClick={() => void openVisit(visit)} className="group cursor-pointer hover:bg-brand-50/50">
-                    <td className="px-5 py-3.5">
+                    <td className="py-3.5 pl-16 pr-5">
                       <p className="font-medium text-ink group-hover:text-brand-700">Visit {visit.visitNumber}</p>
                       <p className="text-xs text-ink-subtle">Year {visit.agreementYearNumber} · ID {visit.serviceScheduleId}</p>
                     </td>
@@ -322,7 +362,8 @@ export function SiteVisits() {
                     <td className="px-5 py-3.5"><div className="flex justify-end gap-2">{(['SCHEDULED', 'DUE'] as ServiceVisitStatus[]).includes(visit.status) && <Button className="h-8 px-3" onClick={(event) => { event.stopPropagation(); openStart(visit); }}>Start</Button>}{visit.status === 'STARTED' && <Button className="h-8 px-3" onClick={(event) => { event.stopPropagation(); openComplete(visit); }}>Complete</Button>}</div></td>
                     <td className="pr-4"><ChevronRightIcon className="h-4 w-4 text-ink-subtle group-hover:text-brand-700" /></td>
                   </tr>
-                ))}
+                  )));
+                })}
               </tbody>
             </table>
           </div>
