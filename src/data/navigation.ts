@@ -40,12 +40,18 @@ export const navSections: NavSection[] = [
 
 },
 {
-  title: 'Sales',
+  title: 'Users',
   items: [
-  { key: 'customers', label: 'Customers', path: '/customers', icon: Building2Icon, description: 'Customer accounts, sites and their machines.' },
   { key: 'salesman', label: 'Salesman', path: '/salesman', icon: BriefcaseIcon, description: 'Manage your sales team, their customer assignments and targets.' },
   { key: 'coordinator', label: 'Coordinators', path: '/coordinator', icon: UserCogIcon, description: 'Manage coordinators, areas and access.' },
   { key: 'finance', label: 'Finance', path: '/finance', icon: LandmarkIcon, description: 'Manage finance users and company access.' },
+  { key: 'tech-officers', label: 'Tech Officers', path: '/tech-officers', icon: HardHatIcon, description: 'Field technicians, their skills and job history.' }]
+
+},
+{
+  title: 'Sales',
+  items: [
+  { key: 'customers', label: 'Customers', path: '/customers', icon: Building2Icon, description: 'Customer accounts, sites and their machines.' },
   { key: 'estimates', label: 'Estimates', path: '/estimates', icon: FileTextIcon, comingSoon: true, description: 'Prepare and send repair and supply estimates for customer approval.' },
   { key: 'new-sales', label: 'New Sales', path: '/new-sales', icon: ShoppingCartIcon, description: 'Record new machine sales and hand them over for installation.' }]
 
@@ -53,18 +59,22 @@ export const navSections: NavSection[] = [
 {
   title: 'Service',
   items: [
-  { key: 'tech-officers', label: 'Tech Officers', path: '/tech-officers', icon: HardHatIcon, description: 'Field technicians, their skills and job history.' },
   { key: 'machines', label: 'Machines', path: '/machines', icon: PrinterIcon, description: 'Every installed machine across all customer sites, with contract and service status.' },
   { key: 'machine-models', label: 'Machine Models', path: '/machine-models', icon: PrinterIcon, description: 'Manage the machine model catalogue.' },
   { key: 'machine-invoice', label: 'Machine Invoices', path: '/machine-invoice', icon: FileTextIcon, description: 'Manage machine sales invoices.' },
-  { key: 'installation-job', label: 'Installation Jobs', path: '/installation-job', icon: WrenchIcon, description: 'Track machine installations, assignments and status history.' },
   { key: 'manufacturers', label: 'Manufacturers', path: '/manufacturers', icon: Building2Icon, description: 'Manage machine manufacturers.' },
   { key: 'machine-types', label: 'Machine Types', path: '/machine-types', icon: PackageIcon, description: 'Manage machine categories and types.' },
   { key: 'cities', label: 'Cities', path: '/cities', icon: Building2Icon, description: 'Manage cities by service area.' },
-  { key: 'parts', label: 'Parts', path: '/parts', icon: PackageIcon, comingSoon: true, description: 'Spare parts inventory, stock levels and parts issued to jobs.' },
+  { key: 'parts', label: 'Parts', path: '/parts', icon: PackageIcon, comingSoon: true, description: 'Spare parts inventory, stock levels and parts issued to jobs.' }]
+
+},
+{
+  title: 'Jobs and Service Visits',
+  items: [
+  { key: 'installation-job', label: 'Installation Jobs', path: '/installation-job', icon: WrenchIcon, description: 'Track machine installations, assignments and status history.' },
   { key: 'breakdowns', label: 'Breakdowns', path: '/breakdowns', icon: TriangleAlertIcon, description: 'Log breakdown calls and dispatch the nearest available tech officer.' },
-  { key: 'meter-reading', label: 'Meter Reading', path: '/meter-reading', icon: GaugeIcon, description: 'Find machine meter-reading history for service and billing.' },
-  { key: 'site-visits', label: 'Site Visits', path: '/site-visits', icon: CalendarCheckIcon, description: 'View preventive service schedules by agreement or machine.' }]
+  { key: 'site-visits', label: 'Site Visits', path: '/site-visits', icon: CalendarCheckIcon, description: 'View preventive service schedules by agreement or machine.' },
+  { key: 'meter-reading', label: 'Meter Reading', path: '/meter-reading', icon: GaugeIcon, description: 'Find machine meter-reading history for service and billing.' }]
 
 },
 {
