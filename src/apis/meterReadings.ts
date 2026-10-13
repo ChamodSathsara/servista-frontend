@@ -19,6 +19,16 @@ export interface MeterReadingResponse {
   createdAt: string;
 }
 
+export interface MeterCounterTypeResponse {
+  meterCounterTypeId: number;
+  counterCode: 'TOTAL' | 'BW' | 'COLOR' | 'SCAN';
+  counterName: string;
+  isActive: boolean;
+}
+
+export const getMeterCounterTypes = async () =>
+  (await api.get<MeterCounterTypeResponse[]>('/api/meter-counter-types')).data;
+
 export const getMeterReadingsByMachineReference = async (machineReferenceNumber: string) =>
   (await api.get<MeterReadingResponse[]>(
     `/api/meter-readings/machine/${encodeURIComponent(machineReferenceNumber)}`,
