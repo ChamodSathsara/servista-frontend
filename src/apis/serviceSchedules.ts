@@ -30,6 +30,35 @@ export interface ServiceScheduleResponse {
   createdAt: string;
 }
 
+export interface StartServiceScheduleRequest {
+  startNote: string;
+  meterCounterTypeId: number;
+  meterReading: number;
+  capturedByUserId: number;
+  meterReadingNote: string | null;
+}
+
+export interface CompleteServiceScheduleRequest {
+  solutionTypeId: number;
+  solutionNote: string;
+}
+
+export interface ServiceVisitStartResponse {
+  serviceSchedule: ServiceScheduleResponse;
+  meterReading: {
+    meterReadingId: number;
+    machineId: number;
+    meterCounterTypeId: number;
+    readingValue: number;
+    readingDatetime: string;
+    sourceCode: 'SERVICE';
+    serviceScheduleId: number;
+    capturedByUserId: number;
+    note: string | null;
+    createdAt: string;
+  };
+}
+
 export const getServiceSchedules = async () =>
   (await api.get<ServiceScheduleResponse[]>('/api/service-schedules')).data;
 
@@ -41,3 +70,9 @@ export const getServiceSchedulesByAgreement = async (agreementId: number) =>
 
 export const getServiceSchedulesByMachine = async (machineId: number) =>
   (await api.get<ServiceScheduleResponse[]>(`/api/service-schedules/machine/${machineId}`)).data;
+
+export const startServiceSchedule = async (scheduleId: number, request: StartServiceScheduleRequest) =>
+  (await api.patch<ServiceVisitStartResponse>(`/api/service-schedules/${scheduleId}/start`, request)).data;
+
+export const completeServiceSchedule = async (scheduleId: number, request: CompleteServiceScheduleRequest) =>
+  (await api.patch<ServiceScheduleResponse>(`/api/service-schedules/${scheduleId}/complete`, request)).data;

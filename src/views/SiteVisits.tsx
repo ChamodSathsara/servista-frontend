@@ -19,13 +19,20 @@ import {
   getServiceSchedules,
   getServiceSchedulesByAgreement,
   getServiceSchedulesByMachine,
+  startServiceSchedule,
+  completeServiceSchedule,
   type ServiceScheduleResponse,
   type ServiceVisitStatus,
 } from '../apis/serviceSchedules';
+import { getMeterCounterTypes, type MeterCounterTypeResponse } from '../apis/meterReadings';
+import { getSolutionTypes, type SolutionTypeResponse } from '../apis/solutionTypes';
 import { Button } from '../components/ui/Button';
 import { Drawer } from '../components/ui/Drawer';
+import { FormField } from '../components/ui/FormField';
+import { Modal } from '../components/ui/Modal';
 import { StatusBadge, type BadgeTone } from '../components/ui/StatusBadge';
 import { formatDate } from '../utils/format';
+import { fieldClass } from '../utils/styles';
 
 type LookupMode = 'all' | 'agreement' | 'machine';
 
@@ -54,12 +61,27 @@ export function SiteVisits() {
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<ServiceScheduleResponse | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [meterCounterTypes, setMeterCounterTypes] = useState<MeterCounterTypeResponse[]>([]);
+  const [solutionTypes, setSolutionTypes] = useState<SolutionTypeResponse[]>([]);
+  const [startOpen, setStartOpen] = useState(false);
+  const [completeOpen, setCompleteOpen] = useState(false);
+  const [startNote, setStartNote] = useState('Started preventive maintenance');
+  const [meterCounterTypeId, setMeterCounterTypeId] = useState('');
+  const [meterReading, setMeterReading] = useState('');
+  const [meterReadingNote, setMeterReadingNote] = useState('');
+  const [solutionTypeId, setSolutionTypeId] = useState('');
+  const [solutionNote, setSolutionNote] = useState('Service completed and machine tested');
+  const [actionError, setActionError] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      setVisits(await getServiceSchedules());
+      const [visitResults, counterResults, solutionResults] = await Promise.all([getServiceSchedules(), getMeterCounterTypes(), getSolutionTypes()]);
+      setVisits(visitResults);
+      setMeterCounterTypes(counterResults);
+      setSolutionTypes(solutionResults);
       setLookupMode('all');
       setLookupId('');
       setActiveLookup('All service visits');
@@ -72,8 +94,8 @@ export function SiteVisits() {
 
   useEffect(() => {
     let cancelled = false;
-    getServiceSchedules()
-      .then((result) => { if (!cancelled) setVisits(result); })
+    Promise.all([getServiceSchedules(), getMeterCounterTypes(), getSolutionTypes()])
+      .then(([visitResults, counterResults, solutionResults]) => { if (!cancelled) { setVisits(visitResults); setMeterCounterTypes(counterResults); setSolutionTypes(solutionResults); } })
       .catch((loadError: unknown) => {
         if (!cancelled) setError(loadError instanceof Error ? loadError.message : 'Unable to load service visits.');
       })
@@ -133,6 +155,60 @@ export function SiteVisits() {
       setDetailLoading(false);
     }
   };
+
+  const currentUserId = () => {
+    const raw = localStorage.getItem('currentUser') ?? sessionStorage.getItem('currentUser');
+    try {
+      const id = raw ? Number((JSON.parse(raw) as { userId?: number }).userId) : 0;
+      if (!id) throw new Error();
+      return id;
+    } catch {
+      throw new Error('Your user session is missing. Please sign in again.');
+    }
+  };
+
+  const updateVisit = (updated: ServiceScheduleResponse) => {
+    setVisits((current) => current.map((visit) => visit.serviceScheduleId === updated.serviceScheduleId ? updated : visit));
+    setSelected(updated);
+  };
+
+  const openStart = (visit: ServiceScheduleResponse) => {
+    setSelected(visit); setStartNote('Started preventive maintenance'); setMeterCounterTypeId(''); setMeterReading(''); setMeterReadingNote(''); setActionError(''); setStartOpen(true);
+  };
+
+  const submitStart = async () => {
+    if (!selected) return;
+    if (!startNote.trim()) { setActionError('Start note is required.'); return; }
+    if (!Number(meterCounterTypeId)) { setActionError('Select a meter counter type.'); return; }
+    if (meterReading === '' || !Number.isInteger(Number(meterReading)) || Number(meterReading) < 0) { setActionError('Enter a valid whole-number meter reading.'); return; }
+    if (meterReadingNote.length > 255) { setActionError('Meter reading note must be 255 characters or fewer.'); return; }
+    setSaving(true); setActionError('');
+    try {
+      const result = await startServiceSchedule(selected.serviceScheduleId, { startNote: startNote.trim(), meterCounterTypeId: Number(meterCounterTypeId), meterReading: Number(meterReading), capturedByUserId: currentUserId(), meterReadingNote: meterReadingNote.trim() || null });
+      const updated = result.serviceSchedule;
+      updateVisit(updated); setStartOpen(false); toast.success(`Service visit ${updated.visitNumber} started`);
+    } catch (caught) { const message = caught instanceof Error ? caught.message : 'Unable to start service visit.'; setActionError(message); toast.error(message); }
+    finally { setSaving(false); }
+  };
+
+  const openComplete = (visit: ServiceScheduleResponse) => {
+    setSelected(visit); setSolutionTypeId(''); setSolutionNote('Service completed and machine tested'); setActionError(''); setCompleteOpen(true);
+  };
+
+  const submitComplete = async () => {
+    if (!selected) return;
+    if (!Number(solutionTypeId)) { setActionError('Select a solution type.'); return; }
+    if (!solutionNote.trim()) { setActionError('Solution note is required.'); return; }
+    setSaving(true); setActionError('');
+    try {
+      const updated = await completeServiceSchedule(selected.serviceScheduleId, { solutionTypeId: Number(solutionTypeId), solutionNote: solutionNote.trim() });
+      updateVisit(updated); setCompleteOpen(false); toast.success(`Service visit ${updated.visitNumber} completed`);
+    } catch (caught) { const message = caught instanceof Error ? caught.message : 'Unable to complete service visit.'; setActionError(message); toast.error(message); }
+    finally { setSaving(false); }
+  };
+
+  const activeMeterCounterTypes = meterCounterTypes.filter((type) => type.isActive);
+  const activeSolutionTypes = solutionTypes.filter((type) => type.isActive);
 
   return (
     <div className="mx-auto max-w-7xl">
@@ -227,6 +303,7 @@ export function SiteVisits() {
                   <th className="px-5 py-3 font-medium">Expected date</th>
                   <th className="px-5 py-3 font-medium">Technician</th>
                   <th className="px-5 py-3 font-medium">Status</th>
+                  <th className="px-5 py-3 text-right font-medium">Actions</th>
                   <th className="w-10" />
                 </tr>
               </thead>
@@ -242,6 +319,7 @@ export function SiteVisits() {
                     <td className="px-5 py-3.5 text-ink-muted">{formatDate(visit.expectedVisitDate)}</td>
                     <td className="px-5 py-3.5 text-ink-muted">{visit.assignedTechnicianName || 'Unassigned'}</td>
                     <td className="px-5 py-3.5"><StatusBadge tone={statusTone(visit.status)} label={statusLabel(visit.status)} /></td>
+                    <td className="px-5 py-3.5"><div className="flex justify-end gap-2">{(['SCHEDULED', 'DUE'] as ServiceVisitStatus[]).includes(visit.status) && <Button className="h-8 px-3" onClick={(event) => { event.stopPropagation(); openStart(visit); }}>Start</Button>}{visit.status === 'STARTED' && <Button className="h-8 px-3" onClick={(event) => { event.stopPropagation(); openComplete(visit); }}>Complete</Button>}</div></td>
                     <td className="pr-4"><ChevronRightIcon className="h-4 w-4 text-ink-subtle group-hover:text-brand-700" /></td>
                   </tr>
                 ))}
@@ -270,6 +348,11 @@ export function SiteVisits() {
                 </div>
                 <h2 id="site-visit-title" className="mt-2 text-xl font-semibold text-ink">Service visit {selected.visitNumber}</h2>
                 <p className="mt-1 text-sm text-ink-muted">Agreement year {selected.agreementYearNumber}</p>
+              </div>
+
+              <div className="mt-5 flex gap-2">
+                {(['SCHEDULED', 'DUE'] as ServiceVisitStatus[]).includes(selected.status) && <Button onClick={() => openStart(selected)}>Start visit</Button>}
+                {selected.status === 'STARTED' && <Button onClick={() => openComplete(selected)}>Complete visit</Button>}
               </div>
 
               <div className="mt-6 grid gap-3 sm:grid-cols-2">
@@ -306,6 +389,24 @@ export function SiteVisits() {
           )}
         </div>
       </Drawer>
+
+      <Modal open={startOpen} onClose={() => { if (!saving) setStartOpen(false); }} title="Start service visit" description={selected ? `${selected.machineReferenceNumber} · Visit ${selected.visitNumber}` : undefined} widthClass="max-w-xl" footer={<div className="flex justify-end gap-3"><Button variant="ghost" disabled={saving} onClick={() => setStartOpen(false)}>Cancel</Button><Button loading={saving} onClick={() => void submitStart()}>Start visit</Button></div>}>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {actionError && <p className="rounded-lg bg-danger-50 p-3 text-sm text-danger-700 sm:col-span-2">{actionError}</p>}
+          <FormField label="Meter counter type" htmlFor="visit-counter-type" required><select id="visit-counter-type" value={meterCounterTypeId} disabled={saving} onChange={(event) => setMeterCounterTypeId(event.target.value)} className={fieldClass()}><option value="">Select meter counter type</option>{activeMeterCounterTypes.map((type) => <option key={type.meterCounterTypeId} value={type.meterCounterTypeId}>{type.counterName} · {type.counterCode}</option>)}</select></FormField>
+          <FormField label="Meter reading" htmlFor="visit-meter-reading" required><input id="visit-meter-reading" type="number" min="0" value={meterReading} disabled={saving} onChange={(event) => setMeterReading(event.target.value)} className={fieldClass()} /></FormField>
+          <FormField label="Start note" htmlFor="visit-start-note" required className="sm:col-span-2"><textarea id="visit-start-note" value={startNote} disabled={saving} onChange={(event) => setStartNote(event.target.value)} rows={3} className={`${fieldClass()} py-2`} /></FormField>
+          <FormField label="Meter reading note" htmlFor="visit-meter-note" className="sm:col-span-2"><textarea id="visit-meter-note" value={meterReadingNote} disabled={saving} onChange={(event) => setMeterReadingNote(event.target.value)} rows={3} placeholder="Reading at arrival" className={`${fieldClass()} py-2`} /></FormField>
+        </div>
+      </Modal>
+
+      <Modal open={completeOpen} onClose={() => { if (!saving) setCompleteOpen(false); }} title="Complete service visit" description={selected ? `${selected.machineReferenceNumber} · Visit ${selected.visitNumber}` : undefined} widthClass="max-w-lg" footer={<div className="flex justify-end gap-3"><Button variant="ghost" disabled={saving} onClick={() => setCompleteOpen(false)}>Cancel</Button><Button loading={saving} onClick={() => void submitComplete()}>Complete visit</Button></div>}>
+        <div className="space-y-4">
+          {actionError && <p className="rounded-lg bg-danger-50 p-3 text-sm text-danger-700">{actionError}</p>}
+          <FormField label="Solution type" htmlFor="visit-solution-type" required><select id="visit-solution-type" value={solutionTypeId} disabled={saving} onChange={(event) => setSolutionTypeId(event.target.value)} className={fieldClass()}><option value="">Select solution type</option>{activeSolutionTypes.map((type) => <option key={type.solutionTypeId} value={type.solutionTypeId}>{type.solutionCode.replaceAll('_', ' ')} · {type.solutionDescription}</option>)}</select></FormField>
+          <FormField label="Solution note" htmlFor="visit-solution-note" required><textarea id="visit-solution-note" value={solutionNote} disabled={saving} onChange={(event) => setSolutionNote(event.target.value)} rows={4} className={`${fieldClass()} py-2`} /></FormField>
+        </div>
+      </Modal>
     </div>
   );
 }
