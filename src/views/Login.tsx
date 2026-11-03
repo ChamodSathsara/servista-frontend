@@ -43,7 +43,7 @@ export function Login() {
         deviceLabel: navigator.userAgent.slice(0, 100),
       });
       saveLoginSession(response, remember);
-      router.replace('/dashboard');
+      router.replace(response.role.toUpperCase() === 'TECHNICIAN' ? '/breakdowns' : '/dashboard');
     } catch (error) {
       if (error instanceof ApiError) {
         setErrors({

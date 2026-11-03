@@ -11,6 +11,8 @@ export interface BreakdownResponse {
   startNote: string | null; startedAt: string | null; actualSolutionTypeId: number | null; solutionNote: string | null;
   completedAt: string | null; cancelledBy: number | null; cancelledAt: string | null; cancelReason: string | null;
   createdAt: string; expectedCompletionAt: string | null; contactEmail: string;
+  assignedTechnicianId?: number | null;
+  technicianAssignment?: TechnicianAssignmentResponse | null;
 }
 
 export interface TechnicianAssignmentResponse {

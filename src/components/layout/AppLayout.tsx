@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useSyncExternalStore, type ReactNode } from 'react';
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -8,6 +8,7 @@ import { ChevronLeftIcon, MenuIcon } from 'lucide-react';
 import { Sidebar, LOGO_URL, LOGO_W, LOGO_H } from './Sidebar';
 import { easeOut } from '../../utils/styles';
 import { clearLoginSession } from '../../apis/auth';
+import { getCurrentUser, isTechnician } from '../../utils/session';
 
 const COLLAPSE_KEY = 'erp.sidebarCollapsed';
 
@@ -48,6 +49,18 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const collapsed = useSyncExternalStore(subscribeCollapsed, getCollapsed, () => false);
   const router = useRouter();
   const pathname = usePathname();
+
+  useEffect(() => {
+    const user = getCurrentUser();
+    if (!user) {
+      router.replace('/login');
+      return;
+    }
+    const technicianPaths = ['/breakdowns', '/site-visits', '/installation-job', '/meter-reading'];
+    if (isTechnician(user) && !technicianPaths.some((path) => pathname === path || pathname.startsWith(`${path}/`))) {
+      router.replace('/breakdowns');
+    }
+  }, [pathname, router]);
 
   // Close the mobile menu whenever the route changes.
   const [prevPathname, setPrevPathname] = useState(pathname);

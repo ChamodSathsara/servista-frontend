@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import {
   CalendarDaysIcon,
   CheckCircle2Icon,
@@ -22,6 +22,7 @@ import {
 } from '../apis/installationJobs';
 import { createInstallationSubmission, type AgreementTypeRequested } from '../apis/installationSubmissions';
 import { getMachines, type MachineResponse } from '../apis/machines';
+import { getTechnicians } from '../apis/technicians';
 import { Button } from '../components/ui/Button';
 import { Drawer } from '../components/ui/Drawer';
 import { Modal } from '../components/ui/Modal';
@@ -29,6 +30,7 @@ import { FormField } from '../components/ui/FormField';
 import { StatusBadge, type BadgeTone } from '../components/ui/StatusBadge';
 import { formatDate } from '../utils/format';
 import { fieldClass } from '../utils/styles';
+import { getCurrentUser, isTechnician, technicianIdForUser } from '../utils/session';
 
 const statusTone = (status: string): BadgeTone => {
   const value = status.toUpperCase();
@@ -47,6 +49,8 @@ const displayDate = (value: string | null) => (value ? formatDate(value) : '—'
 const submittableStatuses = new Set(['ASSIGNED', 'IN_PROGRESS', 'REJECTED']);
 
 export function InstallationJobs() {
+  const hydrated = useSyncExternalStore(() => () => undefined, () => true, () => false);
+  const technicianMode = hydrated && isTechnician(getCurrentUser());
   const [jobs, setJobs] = useState<InstallationJobResponse[]>([]);
   const [machines, setMachines] = useState<MachineResponse[]>([]);
   const [query, setQuery] = useState('');
@@ -77,21 +81,22 @@ export function InstallationJobs() {
     setLoading(true);
     setError(null);
     try {
-      const [jobResults, machineResults] = await Promise.all([getInstallationJobs(), getMachines()]);
-      setJobs(jobResults);
+      const [jobResults, machineResults, technicians] = await Promise.all([getInstallationJobs(), getMachines(), getTechnicians()]);
+      const technicianId = technicianIdForUser(technicians);
+      setJobs(technicianMode ? jobResults.filter((job) => job.assignedTechnicianId === technicianId) : jobResults);
       setMachines(machineResults);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Unable to load installation jobs.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [technicianMode]);
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([getInstallationJobs(), getMachines()])
-      .then(([jobResults, machineResults]) => {
-        if (!cancelled) { setJobs(jobResults); setMachines(machineResults); }
+    Promise.all([getInstallationJobs(), getMachines(), getTechnicians()])
+      .then(([jobResults, machineResults, technicians]) => {
+        if (!cancelled) { const technicianId = technicianIdForUser(technicians); setJobs(technicianMode ? jobResults.filter((job) => job.assignedTechnicianId === technicianId) : jobResults); setMachines(machineResults); }
       })
       .catch((loadError: unknown) => {
         if (!cancelled) {
@@ -102,7 +107,7 @@ export function InstallationJobs() {
         if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
-  }, []);
+  }, [technicianMode]);
 
   const statuses = useMemo(
     () => Array.from(new Set(jobs.map((job) => job.status))).sort(),

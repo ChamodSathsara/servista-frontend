@@ -1,10 +1,12 @@
 'use client';
 
+import { useSyncExternalStore } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LogOutIcon } from 'lucide-react';
 import { navSections } from '../../data/navigation';
+import { getCurrentUser, isTechnician } from '../../utils/session';
 
 export const LOGO_URL = "/footer-logo-removebg-preview.png";
 export const LOGO_W = 363;
@@ -18,6 +20,14 @@ interface SidebarProps {
 
 export function Sidebar({ onNavigate, onSignOut, collapsed = false }: SidebarProps) {
   const pathname = usePathname();
+  const hydrated = useSyncExternalStore(() => () => undefined, () => true, () => false);
+  const user = hydrated ? getCurrentUser() : null;
+  const sections = !user ? [] : isTechnician(user)
+    ? navSections
+        .map((section) => ({ ...section, items: section.items.filter((item) => ['installation-job', 'breakdowns', 'site-visits', 'meter-reading'].includes(item.key)) }))
+        .filter((section) => section.items.length > 0)
+    : navSections;
+  const initials = user?.userName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || 'U';
   return (
     <div className="flex h-full flex-col border-r border-line bg-white">
       <div className={`flex h-16 shrink-0 items-center border-b border-line ${collapsed ? 'justify-center px-2' : 'px-5'}`}>
@@ -31,7 +41,7 @@ export function Sidebar({ onNavigate, onSignOut, collapsed = false }: SidebarPro
       </div>
 
       <nav aria-label="Main" className={`flex-1 overflow-y-auto overflow-x-hidden py-5 ${collapsed ? 'space-y-3 px-3' : 'space-y-6 px-3'}`}>
-        {navSections.map((section, index) =>
+        {sections.map((section, index) =>
         <div key={section.title}>
             {collapsed ?
           index > 0 && <div className="mx-2 mb-3 border-t border-line" aria-hidden="true" /> :
@@ -77,9 +87,9 @@ export function Sidebar({ onNavigate, onSignOut, collapsed = false }: SidebarPro
         <div className="flex flex-col items-center gap-2">
             <div
             className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-500 text-sm font-semibold text-white"
-            title="Amaya De Silva — Service Manager">
+            title={`${user?.userName || 'User'} — ${user?.role || 'ERP User'}`}>
             
-              AD
+              {initials}
             </div>
             <button
             type="button"
@@ -94,11 +104,11 @@ export function Sidebar({ onNavigate, onSignOut, collapsed = false }: SidebarPro
 
         <div className="flex items-center gap-3 rounded-lg px-2 py-2">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-500 text-sm font-semibold text-white">
-              AD
+              {initials}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-ink">Amaya De Silva</p>
-              <p className="truncate text-xs text-ink-subtle">Service Manager</p>
+              <p className="truncate text-sm font-medium text-ink">{user?.userName || 'User'}</p>
+              <p className="truncate text-xs text-ink-subtle">{user?.role ? user.role.replaceAll('_', ' ') : 'ERP User'}</p>
             </div>
             <button
             type="button"

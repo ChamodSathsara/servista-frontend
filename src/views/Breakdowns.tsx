@@ -36,6 +36,7 @@ import { FormField } from "../components/ui/FormField";
 import { Modal } from "../components/ui/Modal";
 import { StatusBadge, type BadgeTone } from "../components/ui/StatusBadge";
 import { fieldClass } from "../utils/styles";
+import { getCurrentUser, isTechnician, technicianIdForUser } from "../utils/session";
 
 const tone = (status: string): BadgeTone =>
   status === "COMPLETED"
@@ -56,6 +57,7 @@ const terminal = (status: string) =>
   ["COMPLETED", "CANCELLED"].includes(status);
 
 export function Breakdowns() {
+  const technicianMode = isTechnician(getCurrentUser());
   const [items, setItems] = useState<BreakdownResponse[]>([]);
   const [machines, setMachines] = useState<MachineResponse[]>([]);
   const [techs, setTechs] = useState<TechnicianResponse[]>([]);
@@ -108,7 +110,11 @@ export function Breakdowns() {
         getSolutionTypes(),
         getMeterCounterTypes(),
       ]);
-      setItems(a);
+      const user = getCurrentUser();
+      const technicianId = technicianIdForUser(c, user);
+      setItems(isTechnician(user) ? a.filter((item) =>
+        (item.assignedTechnicianId ?? item.technicianAssignment?.technicianId) === technicianId
+      ) : a);
       setMachines(b);
       setTechs(c);
       setSolutionTypes(d);
@@ -130,7 +136,11 @@ export function Breakdowns() {
     ])
       .then(([a, b, c, d, e]) => {
         if (!cancelled) {
-          setItems(a);
+          const user = getCurrentUser();
+          const technicianId = technicianIdForUser(c, user);
+          setItems(isTechnician(user) ? a.filter((item) =>
+            (item.assignedTechnicianId ?? item.technicianAssignment?.technicianId) === technicianId
+          ) : a);
           setMachines(b);
           setTechs(c);
           setSolutionTypes(d);
@@ -415,9 +425,9 @@ export function Breakdowns() {
             {items.length} breakdown calls
           </p>
         </div>
-        <Button icon={<PlusIcon className="h-4 w-4" />} onClick={openCreate}>
+        {!technicianMode && <Button icon={<PlusIcon className="h-4 w-4" />} onClick={openCreate}>
           Create breakdown
-        </Button>
+        </Button>}
       </div>
       <div className="mt-6 overflow-hidden rounded-xl border border-line bg-white shadow-sm">
         <div className="flex flex-col gap-3 border-b border-line p-4 sm:flex-row">
@@ -600,7 +610,7 @@ export function Breakdowns() {
                   >
                     Complete
                   </Button>
-                  {!terminal(selected.status) && (
+                  {!technicianMode && !terminal(selected.status) && (
                     <>
                       <Button
                         variant="secondary"

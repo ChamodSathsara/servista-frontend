@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import {
   CalendarCheckIcon,
   ChevronDownIcon,
@@ -26,6 +26,8 @@ import {
   type ServiceVisitStatus,
 } from '../apis/serviceSchedules';
 import { getMeterCounterTypes, type MeterCounterTypeResponse } from '../apis/meterReadings';
+import { getTechnicians } from '../apis/technicians';
+import { getCurrentUser, isTechnician, technicianIdForUser } from '../utils/session';
 import { getSolutionTypes, type SolutionTypeResponse } from '../apis/solutionTypes';
 import { Button } from '../components/ui/Button';
 import { Drawer } from '../components/ui/Drawer';
@@ -52,6 +54,8 @@ const optionalDate = (date: string | null) => date ? formatDate(date) : '—';
 const optionalDateTime = (date: string | null) => date ? new Date(date).toLocaleString() : '—';
 
 export function SiteVisits() {
+  const hydrated = useSyncExternalStore(() => () => undefined, () => true, () => false);
+  const technicianMode = hydrated && isTechnician(getCurrentUser());
   const [visits, setVisits] = useState<ServiceScheduleResponse[]>([]);
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<'ALL' | ServiceVisitStatus>('ALL');
@@ -80,8 +84,9 @@ export function SiteVisits() {
     setLoading(true);
     setError(null);
     try {
-      const [visitResults, counterResults, solutionResults] = await Promise.all([getServiceSchedules(), getMeterCounterTypes(), getSolutionTypes()]);
-      setVisits(visitResults);
+      const [visitResults, counterResults, solutionResults, technicians] = await Promise.all([getServiceSchedules(), getMeterCounterTypes(), getSolutionTypes(), getTechnicians()]);
+      const technicianId = technicianIdForUser(technicians);
+      setVisits(technicianMode ? visitResults.filter((visit) => visit.assignedTechnicianId === technicianId) : visitResults);
       setMeterCounterTypes(counterResults);
       setSolutionTypes(solutionResults);
       setLookupMode('all');
@@ -92,18 +97,18 @@ export function SiteVisits() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [technicianMode]);
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([getServiceSchedules(), getMeterCounterTypes(), getSolutionTypes()])
-      .then(([visitResults, counterResults, solutionResults]) => { if (!cancelled) { setVisits(visitResults); setMeterCounterTypes(counterResults); setSolutionTypes(solutionResults); } })
+    Promise.all([getServiceSchedules(), getMeterCounterTypes(), getSolutionTypes(), getTechnicians()])
+      .then(([visitResults, counterResults, solutionResults, technicians]) => { if (!cancelled) { const technicianId = technicianIdForUser(technicians); setVisits(technicianMode ? visitResults.filter((visit) => visit.assignedTechnicianId === technicianId) : visitResults); setMeterCounterTypes(counterResults); setSolutionTypes(solutionResults); } })
       .catch((loadError: unknown) => {
         if (!cancelled) setError(loadError instanceof Error ? loadError.message : 'Unable to load service visits.');
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, []);
+  }, [technicianMode]);
 
   const runLookup = async () => {
     if (lookupMode === 'all') {
@@ -122,7 +127,13 @@ export function SiteVisits() {
       const result = lookupMode === 'agreement'
         ? await getServiceSchedulesByAgreement(id)
         : await getServiceSchedulesByMachine(id);
-      setVisits(result);
+      if (technicianMode) {
+        const technicians = await getTechnicians();
+        const technicianId = technicianIdForUser(technicians);
+        setVisits(result.filter((visit) => visit.assignedTechnicianId === technicianId));
+      } else {
+        setVisits(result);
+      }
       setActiveLookup(`${lookupMode === 'agreement' ? 'Agreement' : 'Machine'} ID ${id}`);
     } catch (lookupError) {
       setVisits([]);
@@ -251,7 +262,7 @@ export function SiteVisits() {
         )}
       </div>
 
-      <section className="mt-6 rounded-xl border border-line bg-white p-4 shadow-sm">
+      {!technicianMode && <section className="mt-6 rounded-xl border border-line bg-white p-4 shadow-sm">
         <p className="text-xs font-medium text-ink-muted">Find visits from the server</p>
         <div className="mt-2 flex flex-col gap-3 sm:flex-row">
           <select
@@ -282,7 +293,7 @@ export function SiteVisits() {
           )}
           <Button onClick={() => void runLookup()} loading={loading}>Load visits</Button>
         </div>
-      </section>
+      </section>}
 
       <div className="mt-4 overflow-hidden rounded-xl border border-line bg-white shadow-sm">
         <div className="flex flex-col gap-3 border-b border-line p-4 sm:flex-row">
