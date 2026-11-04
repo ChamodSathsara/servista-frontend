@@ -34,5 +34,5 @@ export const getMeterCounterTypes = async () =>
 
 export const getMeterReadingsByMachineReference = async (machineReferenceNumber: string) =>
   (await api.get<MeterReadingResponse[]>(
-    `/api/meter-readings/machine/${encodeURIComponent(machineReferenceNumber)}`,
+    `${isTechnician(getCurrentUser()) ? '/api/technician/me' : '/api'}/meter-readings/machine/${encodeURIComponent(machineReferenceNumber)}`,
   )).data;
