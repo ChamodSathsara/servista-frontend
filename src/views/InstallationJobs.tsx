@@ -81,9 +81,11 @@ export function InstallationJobs() {
     setLoading(true);
     setError(null);
     try {
-      const [jobResults, machineResults, technicians] = await Promise.all([getInstallationJobs(), getMachines(), getTechnicians()]);
-      const technicianId = technicianIdForUser(technicians);
-      setJobs(technicianMode ? jobResults.filter((job) => job.assignedTechnicianId === technicianId) : jobResults);
+      const [jobResults, machineResults] = await Promise.all([
+        getInstallationJobs(),
+        technicianMode ? Promise.resolve([] as MachineResponse[]) : getMachines(),
+      ]);
+      setJobs(jobResults);
       setMachines(machineResults);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Unable to load installation jobs.');
@@ -94,9 +96,12 @@ export function InstallationJobs() {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([getInstallationJobs(), getMachines(), getTechnicians()])
-      .then(([jobResults, machineResults, technicians]) => {
-        if (!cancelled) { const technicianId = technicianIdForUser(technicians); setJobs(technicianMode ? jobResults.filter((job) => job.assignedTechnicianId === technicianId) : jobResults); setMachines(machineResults); }
+    Promise.all([
+      getInstallationJobs(),
+      technicianMode ? Promise.resolve([] as MachineResponse[]) : getMachines(),
+    ])
+      .then(([jobResults, machineResults]) => {
+        if (!cancelled) { setJobs(jobResults); setMachines(machineResults); }
       })
       .catch((loadError: unknown) => {
         if (!cancelled) {

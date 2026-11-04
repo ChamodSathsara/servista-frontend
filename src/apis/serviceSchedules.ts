@@ -1,4 +1,9 @@
 import { api } from './http';
+import { getCurrentUser, isTechnician } from '../utils/session';
+
+const scheduleBase = () => isTechnician(getCurrentUser())
+  ? '/api/technician/me/service-schedules'
+  : '/api/service-schedules';
 
 export type ServiceVisitStatus =
   | 'SCHEDULED'
@@ -60,10 +65,10 @@ export interface ServiceVisitStartResponse {
 }
 
 export const getServiceSchedules = async () =>
-  (await api.get<ServiceScheduleResponse[]>('/api/service-schedules')).data;
+  (await api.get<ServiceScheduleResponse[]>(scheduleBase())).data;
 
 export const getServiceSchedule = async (scheduleId: number) =>
-  (await api.get<ServiceScheduleResponse>(`/api/service-schedules/${scheduleId}`)).data;
+  (await api.get<ServiceScheduleResponse>(`${scheduleBase()}/${scheduleId}`)).data;
 
 export const getServiceSchedulesByAgreement = async (agreementId: number) =>
   (await api.get<ServiceScheduleResponse[]>(`/api/service-schedules/agreement/${agreementId}`)).data;
@@ -72,7 +77,7 @@ export const getServiceSchedulesByMachine = async (machineId: number) =>
   (await api.get<ServiceScheduleResponse[]>(`/api/service-schedules/machine/${machineId}`)).data;
 
 export const startServiceSchedule = async (scheduleId: number, request: StartServiceScheduleRequest) =>
-  (await api.patch<ServiceVisitStartResponse>(`/api/service-schedules/${scheduleId}/start`, request)).data;
+  (await api.patch<ServiceVisitStartResponse>(`${scheduleBase()}/${scheduleId}/start`, request)).data;
 
 export const completeServiceSchedule = async (scheduleId: number, request: CompleteServiceScheduleRequest) =>
-  (await api.patch<ServiceScheduleResponse>(`/api/service-schedules/${scheduleId}/complete`, request)).data;
+  (await api.patch<ServiceScheduleResponse>(`${scheduleBase()}/${scheduleId}/complete`, request)).data;

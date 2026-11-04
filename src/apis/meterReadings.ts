@@ -1,4 +1,5 @@
 import { api } from './http';
+import { getCurrentUser, isTechnician } from '../utils/session';
 
 export interface MeterReadingResponse {
   meterReadingId: number;
@@ -27,7 +28,9 @@ export interface MeterCounterTypeResponse {
 }
 
 export const getMeterCounterTypes = async () =>
-  (await api.get<MeterCounterTypeResponse[]>('/api/meter-counter-types')).data;
+  (await api.get<MeterCounterTypeResponse[]>(isTechnician(getCurrentUser())
+    ? '/api/technician/me/meter-counter-types'
+    : '/api/meter-counter-types')).data;
 
 export const getMeterReadingsByMachineReference = async (machineReferenceNumber: string) =>
   (await api.get<MeterReadingResponse[]>(

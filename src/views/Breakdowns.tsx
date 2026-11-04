@@ -105,16 +105,12 @@ export function Breakdowns() {
     try {
       const [a, b, c, d, e] = await Promise.all([
         getBreakdowns(),
-        getMachines(),
-        getTechnicians(),
+        technicianMode ? Promise.resolve([] as MachineResponse[]) : getMachines(),
+        technicianMode ? Promise.resolve([] as TechnicianResponse[]) : getTechnicians(),
         getSolutionTypes(),
         getMeterCounterTypes(),
       ]);
-      const user = getCurrentUser();
-      const technicianId = technicianIdForUser(c, user);
-      setItems(isTechnician(user) ? a.filter((item) =>
-        (item.assignedTechnicianId ?? item.technicianAssignment?.technicianId) === technicianId
-      ) : a);
+      setItems(a);
       setMachines(b);
       setTechs(c);
       setSolutionTypes(d);
@@ -124,23 +120,19 @@ export function Breakdowns() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [technicianMode]);
   useEffect(() => {
     let cancelled = false;
     Promise.all([
       getBreakdowns(),
-      getMachines(),
-      getTechnicians(),
+      technicianMode ? Promise.resolve([] as MachineResponse[]) : getMachines(),
+      technicianMode ? Promise.resolve([] as TechnicianResponse[]) : getTechnicians(),
       getSolutionTypes(),
       getMeterCounterTypes(),
     ])
       .then(([a, b, c, d, e]) => {
         if (!cancelled) {
-          const user = getCurrentUser();
-          const technicianId = technicianIdForUser(c, user);
-          setItems(isTechnician(user) ? a.filter((item) =>
-            (item.assignedTechnicianId ?? item.technicianAssignment?.technicianId) === technicianId
-          ) : a);
+          setItems(a);
           setMachines(b);
           setTechs(c);
           setSolutionTypes(d);
@@ -159,7 +151,7 @@ export function Breakdowns() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [technicianMode]);
   const currentUserId = () => {
     const raw =
       localStorage.getItem("currentUser") ??

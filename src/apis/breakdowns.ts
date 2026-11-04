@@ -1,4 +1,9 @@
 import { api } from './http';
+import { getCurrentUser, isTechnician } from '../utils/session';
+
+const breakdownBase = () => isTechnician(getCurrentUser())
+  ? '/api/technician/me/breakdowns'
+  : '/api/breakdowns';
 
 export type BreakdownReportedByType = 'PORTAL_CONTACT' | 'DATA_ENTRY_OPERATOR' | 'TECHNICIAN' | 'DEALER' | 'SALESMAN';
 export type BreakdownStatus = 'PROCESSING' | 'ASSIGNED' | 'TRAVELLING' | 'STARTED' | 'COMPLETED' | 'CANCELLED';
@@ -41,14 +46,14 @@ export interface MeterReadingResponse {
 
 export interface StartBreakdownResponse { breakdown: BreakdownResponse; meterReading: MeterReadingResponse }
 
-export const getBreakdowns = async () => (await api.get<BreakdownResponse[]>('/api/breakdowns')).data;
-export const getBreakdown = async (id: number) => (await api.get<BreakdownResponse>(`/api/breakdowns/${id}`)).data;
+export const getBreakdowns = async () => (await api.get<BreakdownResponse[]>(breakdownBase())).data;
+export const getBreakdown = async (id: number) => (await api.get<BreakdownResponse>(`${breakdownBase()}/${id}`)).data;
 export const createBreakdown = async (request: CreateBreakdownRequest) => (await api.post<CreateBreakdownResponse>('/api/breakdowns', request)).data;
 export const changeBreakdownTechnician = async (id: number, request: { technicianId: number; assignedBy: number; reason: string | null }) =>
   (await api.patch<TechnicianAssignmentResponse>(`/api/breakdowns/${id}/technician`, request)).data;
 export const cancelBreakdown = async (id: number, request: { cancelledBy: number; cancelReason: string }) =>
   (await api.patch<BreakdownResponse>(`/api/breakdowns/${id}/cancel`, request)).data;
 export const startBreakdown = async (id: number, request: { startNote: string | null; meterCounterTypeId: number; meterReading: number; capturedByUserId: number; meterReadingNote: string | null }) =>
-  (await api.patch<StartBreakdownResponse>(`/api/breakdowns/${id}/start`, request)).data;
+  (await api.patch<StartBreakdownResponse>(`${breakdownBase()}/${id}/start`, request)).data;
 export const completeBreakdown = async (id: number, request: { actualSolutionTypeId: number; solutionNote: string | null }) =>
-  (await api.patch<BreakdownResponse>(`/api/breakdowns/${id}/complete`, request)).data;
+  (await api.patch<BreakdownResponse>(`${breakdownBase()}/${id}/complete`, request)).data;

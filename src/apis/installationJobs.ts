@@ -1,4 +1,9 @@
 import { api } from './http';
+import { getCurrentUser, isTechnician } from '../utils/session';
+
+const installationBase = () => isTechnician(getCurrentUser())
+  ? '/api/technician/me/installation-jobs'
+  : '/api/installation-jobs';
 
 export type InstallationJobStatus = 'ASSIGNED' | 'IN_PROGRESS' | 'SUBMITTED' | 'VERIFIED' | 'COMPLETED' | 'REJECTED' | 'CANCELLED';
 
@@ -34,10 +39,10 @@ export interface InstallationJobResponse {
 }
 
 export const getInstallationJobs = async () =>
-  (await api.get<InstallationJobResponse[]>('/api/installation-jobs')).data;
+  (await api.get<InstallationJobResponse[]>(installationBase())).data;
 
 export const getInstallationJob = async (jobId: number) =>
-  (await api.get<InstallationJobResponse>(`/api/installation-jobs/${jobId}`)).data;
+  (await api.get<InstallationJobResponse>(`${installationBase()}/${jobId}`)).data;
 
 export interface CompleteInstallationJobRequest {
   performedBy: number;
@@ -48,6 +53,6 @@ export const completeInstallationJob = async (
   jobId: number,
   request: CompleteInstallationJobRequest,
 ) => (await api.post<InstallationJobResponse>(
-  `/api/installation-jobs/${jobId}/complete`,
+  `${installationBase()}/${jobId}/complete`,
   request,
 )).data;

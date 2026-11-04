@@ -84,9 +84,8 @@ export function SiteVisits() {
     setLoading(true);
     setError(null);
     try {
-      const [visitResults, counterResults, solutionResults, technicians] = await Promise.all([getServiceSchedules(), getMeterCounterTypes(), getSolutionTypes(), getTechnicians()]);
-      const technicianId = technicianIdForUser(technicians);
-      setVisits(technicianMode ? visitResults.filter((visit) => visit.assignedTechnicianId === technicianId) : visitResults);
+      const [visitResults, counterResults, solutionResults] = await Promise.all([getServiceSchedules(), getMeterCounterTypes(), getSolutionTypes()]);
+      setVisits(visitResults);
       setMeterCounterTypes(counterResults);
       setSolutionTypes(solutionResults);
       setLookupMode('all');
@@ -101,8 +100,8 @@ export function SiteVisits() {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([getServiceSchedules(), getMeterCounterTypes(), getSolutionTypes(), getTechnicians()])
-      .then(([visitResults, counterResults, solutionResults, technicians]) => { if (!cancelled) { const technicianId = technicianIdForUser(technicians); setVisits(technicianMode ? visitResults.filter((visit) => visit.assignedTechnicianId === technicianId) : visitResults); setMeterCounterTypes(counterResults); setSolutionTypes(solutionResults); } })
+    Promise.all([getServiceSchedules(), getMeterCounterTypes(), getSolutionTypes()])
+      .then(([visitResults, counterResults, solutionResults]) => { if (!cancelled) { setVisits(visitResults); setMeterCounterTypes(counterResults); setSolutionTypes(solutionResults); } })
       .catch((loadError: unknown) => {
         if (!cancelled) setError(loadError instanceof Error ? loadError.message : 'Unable to load service visits.');
       })
@@ -124,16 +123,14 @@ export function SiteVisits() {
     setLoading(true);
     setError(null);
     try {
-      const result = lookupMode === 'agreement'
-        ? await getServiceSchedulesByAgreement(id)
-        : await getServiceSchedulesByMachine(id);
-      if (technicianMode) {
-        const technicians = await getTechnicians();
-        const technicianId = technicianIdForUser(technicians);
-        setVisits(result.filter((visit) => visit.assignedTechnicianId === technicianId));
-      } else {
-        setVisits(result);
-      }
+      const result = technicianMode
+        ? (await getServiceSchedules()).filter((visit) => lookupMode === 'agreement'
+            ? visit.agreementId === id
+            : visit.machineId === id)
+        : lookupMode === 'agreement'
+          ? await getServiceSchedulesByAgreement(id)
+          : await getServiceSchedulesByMachine(id);
+      setVisits(result);
       setActiveLookup(`${lookupMode === 'agreement' ? 'Agreement' : 'Machine'} ID ${id}`);
     } catch (lookupError) {
       setVisits([]);
