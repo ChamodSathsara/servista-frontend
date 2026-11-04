@@ -80,7 +80,7 @@ export const navSections: NavSection[] = [
 {
   title: 'Insights',
   items: [
-  { key: 'reports', label: 'Reports', path: '/reports', icon: ClipboardListIcon, comingSoon: true, description: 'Operational and sales reports you can filter and export.' },
+  { key: 'reports', label: 'Reports', path: '/reports', icon: ClipboardListIcon, description: 'Operational and sales reports you can filter and export.' },
   { key: 'customer-feedbacks', label: 'Customer Feedbacks', path: '/customer-feedbacks', icon: MessageSquareIcon, comingSoon: true, description: 'Ratings and comments collected after every completed job.' }]
 
 }];
