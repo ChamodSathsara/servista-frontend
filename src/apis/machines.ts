@@ -35,6 +35,13 @@ export const getMachine = async (id: number) => (await api.get<MachineResponse>(
 export const createMachine = async (request: MachineRequest) => (await api.post<MachineResponse>('/api/machines', request)).data;
 export const updateMachine = async (id: number, request: MachineRequest) => (await api.put<MachineResponse>(`/api/machines/${id}`, request)).data;
 export const deleteMachine = async (id: number) => { await api.delete(`/api/machines/${id}`); };
+export interface CustomerSiteOption { customerSiteId: number; customerId: number; siteName: string; address: string; area: MachineArea }
+export interface MachineHistoryEvent { eventType: 'STATUS' | 'CUSTOMER' | 'TECHNICIAN'; title: string; description: string; occurredAt: string; performedBy: string }
+export const getCustomerSites = async (customerId: number) => (await api.get<CustomerSiteOption[]>('/api/machines/customer-sites', { params: { customerId } })).data;
+export const getMachineHistory = async (id: number) => (await api.get<MachineHistoryEvent[]>(`/api/machines/${id}/history`)).data;
+export const transferMachineCustomer = async (id: number, request: { customerId: number; customerSiteId: number; assignmentType: 'OUTRIGHT_SALE' | 'RENTAL'; effectiveDate: string; performedBy: number; reason: string | null }) => (await api.post<MachineResponse>(`/api/machines/${id}/customer-transfer`, request)).data;
+export const changeMachineTechnicians = async (id: number, request: { mainTechnicianId: number | null; serviceTechnicianId: number | null; effectiveDate: string; performedBy: number; reason: string | null }) => (await api.post<MachineResponse>(`/api/machines/${id}/technicians`, request)).data;
+export const returnMachineToStock = async (id: number, request: { returnDate: string; performedBy: number; reason: string }) => (await api.post<MachineResponse>(`/api/machines/${id}/return-to-stock`, request)).data;
 export const getMachineModels = async () => (await api.get<MachineModelResponse[]>('/api/machine-models')).data;
 export const createMachineModel = async (request: MachineModelRequest) => (await api.post<MachineModelResponse>('/api/machine-models', request)).data;
 export const updateMachineModel = async (id: number, request: MachineModelRequest) => (await api.put<MachineModelResponse>(`/api/machine-models/${id}`, request)).data;

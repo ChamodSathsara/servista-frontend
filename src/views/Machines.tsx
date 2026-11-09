@@ -11,6 +11,11 @@ import {
   getMachines,
   searchMachines,
   updateMachine,
+  transferMachineCustomer,
+  changeMachineTechnicians,
+  returnMachineToStock,
+  getMachineHistory,
+  type MachineHistoryEvent,
   type MachineModelRequest,
   type MachineModelResponse,
   type MachineRequest,
@@ -24,6 +29,8 @@ import { Button } from "../components/ui/Button";
 import { MachinesTable } from "../components/machines/MachinesTable";
 import { MachineDrawer } from "../components/machines/MachineDrawer";
 import { MachineDialog } from "../components/machines/MachineDialog";
+import { CustomerTransferDialog, ReturnToStockDialog, TechnicianChangeDialog } from "../components/machines/MachineWorkflowDialogs";
+import { MachineHistoryDialog } from "../components/machines/MachineHistoryDialog";
 import { MachineModelDialog } from "../components/machineModels/MachineModelDialog";
 import { CityDialog } from "../components/cities/CityDialog";
 import {
@@ -52,6 +59,12 @@ export function Machines() {
   const [deleting, setDeleting] = useState(false);
   const [modelDialogOpen, setModelDialogOpen] = useState(false);
   const [cityDialogOpen, setCityDialogOpen] = useState(false);
+  const [customerTransferMachine, setCustomerTransferMachine] = useState<MachineResponse | null>(null);
+  const [technicianChangeMachine, setTechnicianChangeMachine] = useState<MachineResponse | null>(null);
+  const [returnMachine, setReturnMachine] = useState<MachineResponse | null>(null);
+  const [historyMachine, setHistoryMachine] = useState<MachineResponse | null>(null);
+  const [historyEvents, setHistoryEvents] = useState<MachineHistoryEvent[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const initialSearch = useRef(true);
 
   const load = useCallback(async () => {
@@ -266,6 +279,31 @@ export function Machines() {
       throw e;
     }
   };
+  const applyWorkflowResult = (result: MachineResponse) => {
+    setMachines((previous) => previous.map((machine) => machine.machineId === result.machineId ? result : machine));
+    setSelected(result);
+  };
+  const changeCustomer = async (value: { customerId: number; customerSiteId: number; assignmentType: "OUTRIGHT_SALE" | "RENTAL"; effectiveDate: string; reason: string }) => {
+    if (!customerTransferMachine) return;
+    const result = await transferMachineCustomer(customerTransferMachine.machineId, { ...value, performedBy: userId(), reason: value.reason || null });
+    applyWorkflowResult(result); setCustomerTransferMachine(null); toast.success("Machine customer changed");
+  };
+  const changeTechnicians = async (value: { mainTechnicianId: number | null; serviceTechnicianId: number | null; effectiveDate: string; reason: string }) => {
+    if (!technicianChangeMachine) return;
+    const result = await changeMachineTechnicians(technicianChangeMachine.machineId, { ...value, performedBy: userId(), reason: value.reason || null });
+    applyWorkflowResult(result); setTechnicianChangeMachine(null); toast.success("Technician assignments updated");
+  };
+  const returnToStock = async (value: { returnDate: string; reason: string }) => {
+    if (!returnMachine) return;
+    const result = await returnMachineToStock(returnMachine.machineId, { ...value, performedBy: userId() });
+    applyWorkflowResult(result); setReturnMachine(null); toast.success("Machine returned to company stock");
+  };
+  const openHistory = async (machine: MachineResponse) => {
+    setHistoryMachine(machine); setHistoryEvents([]); setHistoryLoading(true);
+    try { setHistoryEvents(await getMachineHistory(machine.machineId)); }
+    catch (e) { toast.error(e instanceof Error ? e.message : "Unable to load machine history."); }
+    finally { setHistoryLoading(false); }
+  };
   return (
     <div className="mx-auto max-w-7xl">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -351,7 +389,15 @@ export function Machines() {
           setDialogOpen(true);
         }}
         onDelete={(m) => void remove(m)}
+        onChangeCustomer={setCustomerTransferMachine}
+        onChangeTechnicians={setTechnicianChangeMachine}
+        onReturn={setReturnMachine}
+        onHistory={(machine) => void openHistory(machine)}
       />
+      <CustomerTransferDialog key={customerTransferMachine?.machineId ?? "customer-closed"} machine={customerTransferMachine} customers={customers} onClose={() => setCustomerTransferMachine(null)} onSave={changeCustomer} />
+      <TechnicianChangeDialog key={technicianChangeMachine?.machineId ?? "technician-closed"} machine={technicianChangeMachine} technicians={technicians} onClose={() => setTechnicianChangeMachine(null)} onSave={changeTechnicians} />
+      <ReturnToStockDialog key={returnMachine?.machineId ?? "return-closed"} machine={returnMachine} onClose={() => setReturnMachine(null)} onSave={returnToStock} />
+      <MachineHistoryDialog machine={historyMachine} events={historyEvents} loading={historyLoading} onClose={() => setHistoryMachine(null)} />
       <MachineDialog
         open={dialogOpen}
         machine={editing}
