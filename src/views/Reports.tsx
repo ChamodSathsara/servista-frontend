@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeftIcon,
+  AlertTriangleIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   DownloadIcon,
@@ -26,6 +27,9 @@ import {
   type ReportDivision,
   type ReportCompany,
 } from '../apis/reports';
+import { BreakdownReport } from './BreakdownReport';
+
+type ReportSelection = AgreementReportType | 'breakdowns';
 
 const cards = [
   {
@@ -55,13 +59,22 @@ const cards = [
     icon: ShieldCheckIcon,
     accent: 'bg-emerald-50 text-emerald-700',
   },
+  {
+    type: 'breakdowns' as const,
+    number: '04',
+    title: 'Breakdown Job Report',
+    subtitle: 'Breakdown Service Activity',
+    description: 'Review breakdown jobs by company, division, area, agreement coverage, job status, machine and technician.',
+    icon: AlertTriangleIcon,
+    accent: 'bg-amber-50 text-amber-700',
+  },
 ];
 
 const iso = (date: Date) => date.toISOString().slice(0, 10);
 const thisYear = () => ({ startDate: `${new Date().getFullYear()}-01-01`, lastDate: `${new Date().getFullYear()}-12-31` });
 
 export function Reports() {
-  const [selected, setSelected] = useState<AgreementReportType | null>(null);
+  const [selected, setSelected] = useState<ReportSelection | null>(null);
   const [technicians, setTechnicians] = useState<TechnicianResponse[]>([]);
   const [filters, setFilters] = useState<ReportFilters>({ ...thisYear(), page: 0, size: 20 });
   const [result, setResult] = useState<ReportPage | null>(null);
@@ -74,12 +87,13 @@ export function Reports() {
     getTechnicians().then(setTechnicians).catch(() => setTechnicians([]));
   }, []);
 
-  const open = (type: AgreementReportType) => {
+  const open = (type: ReportSelection) => {
     const now = new Date();
     const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
     const nextMonthEnd = new Date(now.getFullYear(), now.getMonth() + 2, 0);
     setSelected(type);
     setResult(null);
+    if (type === 'breakdowns') return;
     setFilters({
       ...(type === 'ns' ? thisYear() : { startDate: iso(nextMonthStart), lastDate: iso(nextMonthEnd) }),
       page: 0,
@@ -88,7 +102,7 @@ export function Reports() {
   };
 
   const load = async (next: ReportFilters = filters) => {
-    if (!selected) return;
+    if (!selected || selected === 'breakdowns') return;
     setLoading(true);
     try {
       const data = await getAgreementReport(selected, next);
@@ -102,7 +116,7 @@ export function Reports() {
   };
 
   const download = async (format: 'pdf' | 'excel') => {
-    if (!selected) return;
+    if (!selected || selected === 'breakdowns') return;
     setDownloading(format);
     try {
       await downloadAgreementReport(selected, format, filters);
@@ -137,6 +151,10 @@ export function Reports() {
         })}
       </div>
     </div>;
+  }
+
+  if (selected === 'breakdowns') {
+    return <BreakdownReport onBack={() => setSelected(null)} />;
   }
 
   return <div className="mx-auto max-w-7xl">

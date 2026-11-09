@@ -39,6 +39,55 @@ export interface ReportPage {
   last: boolean;
 }
 
+export type BreakdownReportStatus = 'ASSIGNED' | 'STARTED' | 'COMPLETED' | 'RECALL' | 'CANCELLED';
+export type BreakdownAgreementType = 'FS' | 'MA' | 'NS';
+
+export interface BreakdownJobReportRow {
+  breakdownId: number;
+  breakdownNumber: string;
+  machineReferenceNumber: string;
+  serialNumber: string;
+  company: ReportCompany;
+  division: ReportDivision;
+  customerName: string | null;
+  siteName: string;
+  area: ReportArea;
+  agreementType: BreakdownAgreementType | null;
+  agreementStatus: string | null;
+  jobStatus: BreakdownReportStatus;
+  technicianCode: string | null;
+  technicianName: string | null;
+  reportedNote: string | null;
+  solutionNote: string | null;
+  contactEmail: string;
+  expectedCompletionAt: string | null;
+  createdAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+  responseTimeHours: number | null;
+}
+
+export interface BreakdownReportFilters {
+  company?: ReportCompany;
+  division?: ReportDivision;
+  area?: ReportArea;
+  agreementType?: BreakdownAgreementType;
+  jobStatus?: BreakdownReportStatus;
+  search?: string;
+  page: number;
+  size: number;
+}
+
+export interface BreakdownReportPage {
+  content: BreakdownJobReportRow[];
+  number: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  first: boolean;
+  last: boolean;
+}
+
 export interface ReportFilters {
   startDate: string;
   lastDate: string;
@@ -80,6 +129,38 @@ export async function downloadAgreementReport(
   const anchor = document.createElement('a');
   anchor.href = url;
   anchor.download = `${type}-machine-agreements.${extension}`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
+const breakdownParams = (filters: BreakdownReportFilters) => ({
+  company: filters.company || undefined,
+  division: filters.division || undefined,
+  area: filters.area || undefined,
+  agreementType: filters.agreementType || undefined,
+  jobStatus: filters.jobStatus || undefined,
+  search: filters.search?.trim() || undefined,
+  page: filters.page,
+  size: filters.size,
+});
+
+export async function getBreakdownJobReport(filters: BreakdownReportFilters): Promise<BreakdownReportPage> {
+  const { data } = await api.get<BreakdownReportPage>('/api/reports/breakdown-jobs', { params: breakdownParams(filters) });
+  return data;
+}
+
+export async function downloadBreakdownJobReport(format: 'pdf' | 'excel', filters: BreakdownReportFilters): Promise<void> {
+  const response = await api.get<Blob>(`/api/reports/breakdown-jobs/${format}`, {
+    params: breakdownParams(filters),
+    responseType: 'blob',
+  });
+  const extension = format === 'excel' ? 'xlsx' : 'pdf';
+  const url = URL.createObjectURL(response.data);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `breakdown-job-report.${extension}`;
   document.body.appendChild(anchor);
   anchor.click();
   anchor.remove();
