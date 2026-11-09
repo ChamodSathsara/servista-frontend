@@ -15,13 +15,14 @@ import {
   changeMachineTechnicians,
   returnMachineToStock,
   getMachineHistory,
+  createCustomerSite,
   type MachineHistoryEvent,
   type MachineModelRequest,
   type MachineModelResponse,
   type MachineRequest,
   type MachineResponse,
 } from "../apis/machines";
-import { getCustomers, type CustomerResponse } from "../apis/customers";
+import { createCustomer, getCustomers, type ApiCustomerGrade, type ApiCustomerSegment, type ApiCustomerType, type CustomerResponse } from "../apis/customers";
 import { getTechnicians, type TechnicianResponse } from "../apis/technicians";
 import { getSalesmen, type SalesmanResponse } from "../apis/salesmen";
 import { ApiError } from "../apis/http";
@@ -31,6 +32,9 @@ import { MachineDrawer } from "../components/machines/MachineDrawer";
 import { MachineDialog } from "../components/machines/MachineDialog";
 import { CustomerTransferDialog, ReturnToStockDialog, TechnicianChangeDialog } from "../components/machines/MachineWorkflowDialogs";
 import { MachineHistoryDialog } from "../components/machines/MachineHistoryDialog";
+import { CreateCustomerDialog } from "../components/customers/CreateCustomerDialog";
+import type { CustomerFormValues } from "../hooks/useCreateCustomerForm";
+import type { CustomerSiteFormValue } from "../components/machines/CreateCustomerSiteDialog";
 import { MachineModelDialog } from "../components/machineModels/MachineModelDialog";
 import { CityDialog } from "../components/cities/CityDialog";
 import {
@@ -65,6 +69,8 @@ export function Machines() {
   const [historyMachine, setHistoryMachine] = useState<MachineResponse | null>(null);
   const [historyEvents, setHistoryEvents] = useState<MachineHistoryEvent[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [customerCreateOpen, setCustomerCreateOpen] = useState(false);
+  const [transferInitialCustomerId, setTransferInitialCustomerId] = useState<number | null>(null);
   const initialSearch = useRef(true);
 
   const load = useCallback(async () => {
@@ -286,7 +292,7 @@ export function Machines() {
   const changeCustomer = async (value: { customerId: number; customerSiteId: number; assignmentType: "OUTRIGHT_SALE" | "RENTAL"; effectiveDate: string; reason: string }) => {
     if (!customerTransferMachine) return;
     const result = await transferMachineCustomer(customerTransferMachine.machineId, { ...value, performedBy: userId(), reason: value.reason || null });
-    applyWorkflowResult(result); setCustomerTransferMachine(null); toast.success("Machine customer changed");
+    applyWorkflowResult(result); setCustomerTransferMachine(null); setTransferInitialCustomerId(null); toast.success("Machine customer changed");
   };
   const changeTechnicians = async (value: { mainTechnicianId: number | null; serviceTechnicianId: number | null; effectiveDate: string; reason: string }) => {
     if (!technicianChangeMachine) return;
@@ -303,6 +309,23 @@ export function Machines() {
     try { setHistoryEvents(await getMachineHistory(machine.machineId)); }
     catch (e) { toast.error(e instanceof Error ? e.message : "Unable to load machine history."); }
     finally { setHistoryLoading(false); }
+  };
+  const createTransferCustomer = async (value: CustomerFormValues) => {
+    const created = await createCustomer({
+      ...(value.sageCode.trim() ? { sageCode: value.sageCode.trim() } : {}),
+      customerName: value.customerName.trim(), addressLine1: value.addressLine1.trim() || undefined,
+      addressLine2: value.addressLine2.trim() || undefined, addressLine3: value.addressLine3.trim() || undefined,
+      headOfficeTelNumber: value.headOfficeTel.trim() || undefined, headOfficeEmail: value.headOfficeEmail.trim() || undefined,
+      isActive: value.isActive, customerGrade: value.grade as ApiCustomerGrade,
+      customerType: value.type as ApiCustomerType, customerSegment: value.segment as ApiCustomerSegment,
+      createdBy: userId(), companies: value.companies, salesmanId: Number(value.salesmanId),
+    });
+    setCustomers(previous => [created, ...previous]); setTransferInitialCustomerId(created.customerId); setCustomerCreateOpen(false);
+    toast.success(`${created.customerName} created and selected`);
+  };
+  const createTransferSite = async (customerId: number, value: CustomerSiteFormValue) => {
+    const created = await createCustomerSite({ site: { customerId, siteName: value.siteName, addressLine1: value.addressLine1, addressLine2: value.addressLine2 || null, addressLine3: value.addressLine3 || null, area: value.area, cityId: value.cityId, latitude: value.latitude, longitude: value.longitude, isHeadOffice: value.isHeadOffice, isActive: true }, contact: { contactName: value.contactName, mobileNumber: value.mobileNumber || null, email: value.email, designation: value.designation || null, isPrimary: true, isActive: true }, performedBy: userId() });
+    toast.success(`${created.siteName} created and selected`); return created;
   };
   return (
     <div className="mx-auto max-w-7xl">
@@ -389,12 +412,13 @@ export function Machines() {
           setDialogOpen(true);
         }}
         onDelete={(m) => void remove(m)}
-        onChangeCustomer={setCustomerTransferMachine}
+        onChangeCustomer={(machine) => { setTransferInitialCustomerId(null); setCustomerTransferMachine(machine); }}
         onChangeTechnicians={setTechnicianChangeMachine}
         onReturn={setReturnMachine}
         onHistory={(machine) => void openHistory(machine)}
       />
-      <CustomerTransferDialog key={customerTransferMachine?.machineId ?? "customer-closed"} machine={customerTransferMachine} customers={customers} onClose={() => setCustomerTransferMachine(null)} onSave={changeCustomer} />
+      <CustomerTransferDialog key={`${customerTransferMachine?.machineId ?? "customer-closed"}-${transferInitialCustomerId ?? "none"}`} machine={customerTransferMachine} customers={customers} cities={cities} initialCustomerId={transferInitialCustomerId} onCreateCustomer={() => setCustomerCreateOpen(true)} onCreateSite={createTransferSite} onClose={() => { setCustomerTransferMachine(null); setTransferInitialCustomerId(null); }} onSave={changeCustomer} />
+      <CreateCustomerDialog open={customerCreateOpen} onClose={() => setCustomerCreateOpen(false)} onCreate={createTransferCustomer} />
       <TechnicianChangeDialog key={technicianChangeMachine?.machineId ?? "technician-closed"} machine={technicianChangeMachine} technicians={technicians} onClose={() => setTechnicianChangeMachine(null)} onSave={changeTechnicians} />
       <ReturnToStockDialog key={returnMachine?.machineId ?? "return-closed"} machine={returnMachine} onClose={() => setReturnMachine(null)} onSave={returnToStock} />
       <MachineHistoryDialog machine={historyMachine} events={historyEvents} loading={historyLoading} onClose={() => setHistoryMachine(null)} />
