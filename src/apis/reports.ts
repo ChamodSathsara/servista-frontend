@@ -166,3 +166,86 @@ export async function downloadBreakdownJobReport(format: 'pdf' | 'excel', filter
   anchor.remove();
   URL.revokeObjectURL(url);
 }
+
+export type ServiceVisitReportStatus = 'SCHEDULED' | 'DUE' | 'STARTED' | 'COMPLETED' | 'RECALLED' | 'CANCELLED';
+
+export interface ServiceVisitReportRow {
+  serviceScheduleId: number;
+  machineReferenceNumber: string;
+  serialNumber: string;
+  company: ReportCompany;
+  division: ReportDivision;
+  customerName: string | null;
+  siteName: string | null;
+  area: ReportArea | null;
+  agreementNumber: string;
+  agreementType: BreakdownAgreementType;
+  agreementStatus: string;
+  agreementYearNumber: number;
+  visitNumber: number;
+  visitStatus: ServiceVisitReportStatus;
+  technicianCode: string | null;
+  technicianName: string | null;
+  expectedVisitDate: string;
+  scheduledDate: string | null;
+  actualVisitDate: string | null;
+  startNote: string | null;
+  solutionCode: string | null;
+  solutionDescription: string | null;
+  solutionNote: string | null;
+  createdAt: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+}
+
+export interface ServiceVisitReportFilters {
+  company?: ReportCompany;
+  division?: ReportDivision;
+  area?: ReportArea;
+  agreementType?: BreakdownAgreementType;
+  visitStatus?: ServiceVisitReportStatus;
+  search?: string;
+  page: number;
+  size: number;
+}
+
+export interface ServiceVisitReportPage {
+  content: ServiceVisitReportRow[];
+  number: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  first: boolean;
+  last: boolean;
+}
+
+const serviceVisitParams = (filters: ServiceVisitReportFilters) => ({
+  company: filters.company || undefined,
+  division: filters.division || undefined,
+  area: filters.area || undefined,
+  agreementType: filters.agreementType || undefined,
+  visitStatus: filters.visitStatus || undefined,
+  search: filters.search?.trim() || undefined,
+  page: filters.page,
+  size: filters.size,
+});
+
+export async function getServiceVisitReport(filters: ServiceVisitReportFilters): Promise<ServiceVisitReportPage> {
+  const { data } = await api.get<ServiceVisitReportPage>('/api/reports/service-visits', { params: serviceVisitParams(filters) });
+  return data;
+}
+
+export async function downloadServiceVisitReport(format: 'pdf' | 'excel', filters: ServiceVisitReportFilters): Promise<void> {
+  const response = await api.get<Blob>(`/api/reports/service-visits/${format}`, {
+    params: serviceVisitParams(filters), responseType: 'blob',
+  });
+  const extension = format === 'excel' ? 'xlsx' : 'pdf';
+  const url = URL.createObjectURL(response.data);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `service-visit-report.${extension}`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}

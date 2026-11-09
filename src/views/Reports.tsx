@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeftIcon,
   AlertTriangleIcon,
+  CalendarCheckIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   DownloadIcon,
@@ -28,8 +29,9 @@ import {
   type ReportCompany,
 } from '../apis/reports';
 import { BreakdownReport } from './BreakdownReport';
+import { ServiceVisitReport } from './ServiceVisitReport';
 
-type ReportSelection = AgreementReportType | 'breakdowns';
+type ReportSelection = AgreementReportType | 'breakdowns' | 'service-visits';
 
 const cards = [
   {
@@ -68,6 +70,15 @@ const cards = [
     icon: AlertTriangleIcon,
     accent: 'bg-amber-50 text-amber-700',
   },
+  {
+    type: 'service-visits' as const,
+    number: '05',
+    title: 'Service Visit Report',
+    subtitle: 'Site Service Visits',
+    description: 'Review scheduled, due, started and completed site visits by company, division, area, agreement, machine and technician.',
+    icon: CalendarCheckIcon,
+    accent: 'bg-violet-50 text-violet-700',
+  },
 ];
 
 const iso = (date: Date) => date.toISOString().slice(0, 10);
@@ -93,7 +104,7 @@ export function Reports() {
     const nextMonthEnd = new Date(now.getFullYear(), now.getMonth() + 2, 0);
     setSelected(type);
     setResult(null);
-    if (type === 'breakdowns') return;
+    if (type === 'breakdowns' || type === 'service-visits') return;
     setFilters({
       ...(type === 'ns' ? thisYear() : { startDate: iso(nextMonthStart), lastDate: iso(nextMonthEnd) }),
       page: 0,
@@ -102,7 +113,7 @@ export function Reports() {
   };
 
   const load = async (next: ReportFilters = filters) => {
-    if (!selected || selected === 'breakdowns') return;
+    if (!selected || selected === 'breakdowns' || selected === 'service-visits') return;
     setLoading(true);
     try {
       const data = await getAgreementReport(selected, next);
@@ -116,7 +127,7 @@ export function Reports() {
   };
 
   const download = async (format: 'pdf' | 'excel') => {
-    if (!selected || selected === 'breakdowns') return;
+    if (!selected || selected === 'breakdowns' || selected === 'service-visits') return;
     setDownloading(format);
     try {
       await downloadAgreementReport(selected, format, filters);
@@ -155,6 +166,10 @@ export function Reports() {
 
   if (selected === 'breakdowns') {
     return <BreakdownReport onBack={() => setSelected(null)} />;
+  }
+
+  if (selected === 'service-visits') {
+    return <ServiceVisitReport onBack={() => setSelected(null)} />;
   }
 
   return <div className="mx-auto max-w-7xl">
