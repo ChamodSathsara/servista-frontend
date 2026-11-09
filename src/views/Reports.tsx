@@ -24,6 +24,7 @@ import {
   type MachineAgreementReportRow,
   type ReportPage,
   type ReportDivision,
+  type ReportCompany,
 } from '../apis/reports';
 
 const cards = [
@@ -152,12 +153,13 @@ export function Reports() {
     </div>
 
     <div className="mt-6 rounded-xl border border-line bg-white p-5 shadow-sm">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-7">
         <Field label="Start date"><input type="date" value={filters.startDate} onChange={(e) => setFilters((f) => ({ ...f, startDate: e.target.value, page: 0 }))} className="control" /></Field>
         <Field label="End date"><input type="date" value={filters.lastDate} onChange={(e) => setFilters((f) => ({ ...f, lastDate: e.target.value, page: 0 }))} className="control" /></Field>
         <Field label="Area"><select value={filters.area ?? ''} onChange={(e) => setFilters((f) => ({ ...f, area: (e.target.value || undefined) as ReportArea | undefined, page: 0 }))} className="control"><option value="">All areas</option><option value="COLOMBO">Colombo</option><option value="SUBURB">Suburb</option><option value="OUTSTATION">Outstation</option></select></Field>
         <Field label="Main technician"><select value={filters.mainTechnicianId ?? ''} onChange={(e) => setFilters((f) => ({ ...f, mainTechnicianId: e.target.value ? Number(e.target.value) : undefined, page: 0 }))} className="control"><option value="">All technicians</option>{technicians.map((technician) => <option key={technician.technicianId} value={technician.technicianId}>{technician.user.userName}</option>)}</select></Field>
         <Field label="Division"><select value={filters.division ?? ''} onChange={(e) => setFilters((f) => ({ ...f, division: (e.target.value || undefined) as ReportDivision | undefined, page: 0 }))} className="control"><option value="">All divisions</option><option value="RENTAL">Rental</option><option value="OUTRIGHT">Outright</option><option value="WORKSHOP">Workshop</option><option value="AC">AC</option><option value="PRODUCTION">Production</option><option value="ELECTRONIC">Electronic</option></select></Field>
+        <Field label="Company"><select value={filters.company ?? ''} onChange={(e) => setFilters((f) => ({ ...f, company: (e.target.value || undefined) as ReportCompany | undefined, page: 0 }))} className="control"><option value="">All companies</option><option value="GESTETNER">Gestetner</option><option value="FINTECH">Fintech</option></select></Field>
         <div className="flex items-end"><button type="button" onClick={() => void load()} disabled={loading} className="flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"><SearchIcon className="h-4 w-4" />{loading ? 'Loading…' : 'Apply filters'}</button></div>
       </div>
     </div>

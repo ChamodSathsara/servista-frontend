@@ -3,6 +3,7 @@ import { api } from './http';
 export type AgreementReportType = 'ns' | 'fs' | 'ma';
 export type ReportArea = 'COLOMBO' | 'OUTSTATION' | 'SUBURB';
 export type ReportDivision = 'RENTAL' | 'OUTRIGHT' | 'WORKSHOP' | 'AC' | 'PRODUCTION' | 'ELECTRONIC';
+export type ReportCompany = 'GESTETNER' | 'FINTECH';
 
 export interface MachineAgreementReportRow {
   agreementId: number;
@@ -44,6 +45,7 @@ export interface ReportFilters {
   area?: ReportArea;
   mainTechnicianId?: number;
   division?: ReportDivision;
+  company?: ReportCompany;
   page: number;
   size: number;
 }
@@ -54,6 +56,7 @@ const params = (filters: ReportFilters) => ({
   area: filters.area || undefined,
   mainTechnicianId: filters.mainTechnicianId || undefined,
   division: filters.division || undefined,
+  company: filters.company || undefined,
   page: filters.page,
   size: filters.size,
 });
