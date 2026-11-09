@@ -3,7 +3,7 @@ import { api } from './http';
 export type MachineCompany = 'FINTECH' | 'GESTETNER';
 export type MachineDivision = 'RENTAL' | 'OUTRIGHT' | 'WORKSHOP' | 'AC' | 'PRODUCTION' | 'ELECTRONIC';
 export type MachineArea = 'COLOMBO' | 'OUTSTATION' | 'SUBURB';
-export type MachineCurrentStatus = 'AVAILABLE' | 'INSTALLATION_PENDING' | 'ACTIVE_FS' | 'ACTIVE_MA' | 'NO_SERVICE' | 'OUT_OF_SERVICE' | 'RETURNED' | 'CREDIT_NOTE' | 'REMOVED';
+export type MachineCurrentStatus = 'INSTALLATION_PENDING' | 'ACTIVE_FS' | 'ACTIVE_MA' | 'NO_SERVICE' | 'OUT_OF_SERVICE' | 'RETURNED' | 'REMOVED';
 
 export interface MachineRequest {
   customerSite: { customerId: number; siteName: string; addressLine1: string; addressLine2: string | null; addressLine3: string | null; area: MachineArea; cityId: number; latitude: number | null; longitude: number | null; isHeadOffice: boolean; isActive: boolean };

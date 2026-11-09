@@ -11,7 +11,7 @@ export function MachinesTable({ machines, onSelect }: { machines: MachineRespons
     <td className="px-5 py-3.5"><p className="font-medium text-ink group-hover:text-brand-700">{machine.modelName}</p><p className="font-mono text-xs text-ink-subtle">{machine.serialNumber}</p></td>
     <td className="px-5 py-3.5"><p className="text-ink">{machine.siteName}</p><p className="text-xs text-ink-subtle">Customer #{machine.customerId}</p></td>
     <td className="px-5 py-3.5 text-ink-muted">{machine.company} · {machine.division}</td>
-    <td className="px-5 py-3.5"><StatusBadge tone={machine.currentStatus.startsWith('ACTIVE') || machine.currentStatus === 'AVAILABLE' ? 'success' : 'neutral'} label={machine.currentStatus.replaceAll('_', ' ')} /></td>
+    <td className="px-5 py-3.5"><StatusBadge tone={machine.currentStatus.startsWith('ACTIVE') ? 'success' : 'neutral'} label={machine.currentStatus.replaceAll('_', ' ')} /></td>
     <td className="px-3 py-3.5 text-ink-subtle"><ChevronRightIcon className="h-4 w-4 group-hover:translate-x-0.5 group-hover:text-brand-600" /></td>
   </tr>)}</tbody></table></div>;
 }

@@ -43,7 +43,7 @@ const tone = (status: string): BadgeTone =>
     ? "success"
     : status === "CANCELLED"
       ? "danger"
-      : status === "PROCESSING"
+      : status === "ASSIGNED"
         ? "warning"
         : "info";
 const label = (value: string) =>
@@ -243,7 +243,7 @@ export function Breakdowns() {
           informedSolutionTypeId: solutionTypeId
             ? Number(solutionTypeId)
             : null,
-          status: "PROCESSING",
+          status: "ASSIGNED",
           approvedBy: null,
           startNote: null,
           actualSolutionTypeId: null,
@@ -444,10 +444,10 @@ export function Breakdowns() {
           >
             <option value="ALL">All statuses</option>
             {[
-              "PROCESSING",
               "ASSIGNED",
               "STARTED",
               "COMPLETED",
+              "RECALL",
               "CANCELLED",
             ].map((x) => (
               <option key={x} value={x}>
@@ -518,7 +518,7 @@ export function Breakdowns() {
                         <Button
                           className="h-8 px-3"
                           disabled={
-                            !["ASSIGNED", "TRAVELLING"].includes(x.status)
+                            x.status !== "ASSIGNED"
                           }
                           onClick={(e) => {
                             e.stopPropagation();
@@ -590,7 +590,7 @@ export function Breakdowns() {
                 <div className="mt-5 flex flex-wrap gap-2">
                   <Button
                     disabled={
-                      !["ASSIGNED", "TRAVELLING"].includes(selected.status)
+                      selected.status !== "ASSIGNED"
                     }
                     onClick={() => openStart(selected)}
                   >

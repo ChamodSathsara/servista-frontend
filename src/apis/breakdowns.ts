@@ -6,7 +6,7 @@ const breakdownBase = () => isTechnician(getCurrentUser())
   : '/api/breakdowns';
 
 export type BreakdownReportedByType = 'PORTAL_CONTACT' | 'DATA_ENTRY_OPERATOR' | 'TECHNICIAN' | 'DEALER' | 'SALESMAN';
-export type BreakdownStatus = 'PROCESSING' | 'ASSIGNED' | 'TRAVELLING' | 'STARTED' | 'COMPLETED' | 'CANCELLED';
+export type BreakdownStatus = 'ASSIGNED' | 'STARTED' | 'COMPLETED' | 'RECALL' | 'CANCELLED';
 
 export interface BreakdownResponse {
   breakdownId: number; breakdownNumber: string; machineId: number; machineReferenceNumber: string;
@@ -29,7 +29,7 @@ export interface CreateBreakdownRequest {
   breakdown: {
     machineId: number; customerSiteId: number; reportedByType: BreakdownReportedByType;
     reportedByPortalAccountId: number | null; reportedByUserId: number | null; reportedNote: string | null;
-    informedSolutionTypeId: number | null; status: 'PROCESSING'; approvedBy: number | null; startNote: null;
+    informedSolutionTypeId: number | null; status: 'ASSIGNED'; approvedBy: number | null; startNote: null;
     actualSolutionTypeId: null; solutionNote: null; cancelledBy: null; cancelReason: null;
     expectedCompletionAt: string | null; contactEmail: string;
   };

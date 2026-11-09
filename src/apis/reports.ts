@@ -2,7 +2,7 @@ import { api } from './http';
 
 export type AgreementReportType = 'ns' | 'fs' | 'ma';
 export type ReportArea = 'COLOMBO' | 'OUTSTATION' | 'SUBURB';
-export type ReportTeam = 'TECHNICIAN' | 'TEAM_LEADER' | 'WORKSHOP_TECHNICIAN';
+export type ReportDivision = 'RENTAL' | 'OUTRIGHT' | 'WORKSHOP' | 'AC' | 'PRODUCTION' | 'ELECTRONIC';
 
 export interface MachineAgreementReportRow {
   agreementId: number;
@@ -25,7 +25,7 @@ export interface MachineAgreementReportRow {
   area: ReportArea | null;
   mainTechnicianId: number | null;
   mainTechnicianName: string | null;
-  team: ReportTeam | null;
+  division: ReportDivision | null;
 }
 
 export interface ReportPage {
@@ -43,7 +43,7 @@ export interface ReportFilters {
   lastDate: string;
   area?: ReportArea;
   mainTechnicianId?: number;
-  team?: ReportTeam;
+  division?: ReportDivision;
   page: number;
   size: number;
 }
@@ -53,7 +53,7 @@ const params = (filters: ReportFilters) => ({
   lastDate: filters.lastDate,
   area: filters.area || undefined,
   mainTechnicianId: filters.mainTechnicianId || undefined,
-  team: filters.team || undefined,
+  division: filters.division || undefined,
   page: filters.page,
   size: filters.size,
 });
