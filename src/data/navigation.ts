@@ -66,7 +66,7 @@ export const navSections: NavSection[] = [
   { key: 'manufacturers', label: 'Manufacturers', path: '/manufacturers', icon: Building2Icon, description: 'Manage machine manufacturers.' },
   { key: 'machine-types', label: 'Machine Types', path: '/machine-types', icon: PackageIcon, description: 'Manage machine categories and types.' },
   { key: 'cities', label: 'Cities', path: '/cities', icon: Building2Icon, description: 'Manage cities by service area.' },
-  { key: 'parts', label: 'Parts', path: '/parts', icon: PackageIcon, comingSoon: true, description: 'Spare parts inventory, stock levels and parts issued to jobs.' }]
+  { key: 'parts', label: 'Parts', path: '/parts', icon: PackageIcon, description: 'Browse spare parts, categories and compatible machine models.' }]
 
 },
 {
