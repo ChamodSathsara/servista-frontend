@@ -22,7 +22,11 @@ export function Sidebar({ onNavigate, onSignOut, collapsed = false }: SidebarPro
   const pathname = usePathname();
   const hydrated = useSyncExternalStore(() => () => undefined, () => true, () => false);
   const user = hydrated ? getCurrentUser() : null;
-  const sections = !user ? [] : isTechnician(user)
+  const sections = !user ? [] : user.role === 'STORES_USER'
+    ? navSections.map((section) => ({ ...section, items: section.items.filter((item) => ['dashboard', 'new-sales'].includes(item.key)) })).filter((section) => section.items.length > 0)
+    : user.role === 'FINANCE'
+    ? navSections.map((section) => ({ ...section, items: section.items.filter((item) => ['dashboard', 'new-sales'].includes(item.key)) })).filter((section) => section.items.length > 0)
+    : isTechnician(user)
     ? navSections
         .map((section) => ({ ...section, items: section.items.filter((item) => ['installation-job', 'breakdowns', 'site-visits', 'meter-reading'].includes(item.key)) }))
         .filter((section) => section.items.length > 0)

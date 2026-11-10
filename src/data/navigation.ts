@@ -45,6 +45,7 @@ export const navSections: NavSection[] = [
   { key: 'salesman', label: 'Salesman', path: '/salesman', icon: BriefcaseIcon, description: 'Manage your sales team, their customer assignments and targets.' },
   { key: 'coordinator', label: 'Coordinators', path: '/coordinator', icon: UserCogIcon, description: 'Manage coordinators, areas and access.' },
   { key: 'finance', label: 'Finance', path: '/finance', icon: LandmarkIcon, description: 'Manage finance users and company access.' },
+  { key: 'stores-users', label: 'Stores Users', path: '/stores-users', icon: PackageIcon, description: 'Manage stores users and company access.' },
   { key: 'tech-officers', label: 'Tech Officers', path: '/tech-officers', icon: HardHatIcon, description: 'Field technicians, their skills and job history.' }]
 
 },

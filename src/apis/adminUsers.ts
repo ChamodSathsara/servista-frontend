@@ -4,12 +4,13 @@ export type AdminUserCompany = 'GESTETNER' | 'FINTECH';
 export type AdminUserDivision = 'RENTAL' | 'OUTRIGHT' | 'WORKSHOP' | 'AC' | 'PRODUCTION' | 'ELECTRONIC';
 export type AdminUserArea = 'COLOMBO' | 'OUTSTATION' | 'SUBURB';
 export type CoordinatorRole = 'AREA_MANAGER' | 'MANAGER' | 'DATA_ENTRY_OPERATOR';
-export type ManagedUserKind = 'coordinator' | 'finance';
+export type ManagedUserKind = 'coordinator' | 'finance' | 'stores-user';
 
-export interface AdminUserDetails { userId: number; userName: string; mobileNumber: string; email: string; isActive: boolean; division: AdminUserDivision; area: AdminUserArea; role: 'COORDINATOR' | 'FINANCE'; createdAt: string; createdBy: number }
+export interface AdminUserDetails { userId: number; userName: string; mobileNumber: string; email: string; isActive: boolean; division: AdminUserDivision; area: AdminUserArea; role: 'COORDINATOR' | 'FINANCE' | 'STORES_USER'; createdAt: string; createdBy: number }
 export interface CoordinatorResponse { user: AdminUserDetails; coordinatorId: number; coordinatorRole: CoordinatorRole; companies: AdminUserCompany[] }
 export interface FinanceResponse { user: AdminUserDetails; financeId: number; companies: AdminUserCompany[] }
-export type ManagedUserResponse = CoordinatorResponse | FinanceResponse;
+export interface StoresUserResponse { user: AdminUserDetails; storesUserId: number; companies: AdminUserCompany[] }
+export type ManagedUserResponse = CoordinatorResponse | FinanceResponse | StoresUserResponse;
 
 export interface ManagedUserCreateRequest { userName: string; mobileNumber: string; email: string; password: string; isActive: boolean; division: AdminUserDivision; area: AdminUserArea; createdBy: number; companies: AdminUserCompany[]; coordinatorRole?: CoordinatorRole }
 export interface ManagedUserUpdateRequest { userName: string; mobileNumber: string; email: string; password?: string; isActive: boolean; division: AdminUserDivision; area: AdminUserArea; updatedBy: number; coordinatorRole?: CoordinatorRole }
@@ -20,4 +21,8 @@ export const getManagedUser = async (kind: ManagedUserKind, id: number) => (awai
 export const createManagedUser = async (kind: ManagedUserKind, request: ManagedUserCreateRequest) => (await api.post<ManagedUserResponse>(base(kind), request)).data;
 export const updateManagedUser = async (kind: ManagedUserKind, id: number, request: ManagedUserUpdateRequest) => (await api.put<ManagedUserResponse>(`${base(kind)}/${id}`, request)).data;
 export const deleteManagedUser = async (kind: ManagedUserKind, id: number) => { await api.delete(`${base(kind)}/${id}`); };
-export const managedUserId = (kind: ManagedUserKind, user: ManagedUserResponse) => kind === 'coordinator' ? (user as CoordinatorResponse).coordinatorId : (user as FinanceResponse).financeId;
+export const managedUserId = (kind: ManagedUserKind, user: ManagedUserResponse) => kind === 'coordinator'
+  ? (user as CoordinatorResponse).coordinatorId
+  : kind === 'finance'
+    ? (user as FinanceResponse).financeId
+    : (user as StoresUserResponse).storesUserId;
