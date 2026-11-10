@@ -68,6 +68,8 @@ export interface BreakdownJobReportRow {
 }
 
 export interface BreakdownReportFilters {
+  startDate: string;
+  endDate: string;
   company?: ReportCompany;
   division?: ReportDivision;
   area?: ReportArea;
@@ -136,6 +138,8 @@ export async function downloadAgreementReport(
 }
 
 const breakdownParams = (filters: BreakdownReportFilters) => ({
+  startDate: filters.startDate,
+  endDate: filters.endDate,
   company: filters.company || undefined,
   division: filters.division || undefined,
   area: filters.area || undefined,
@@ -199,6 +203,8 @@ export interface ServiceVisitReportRow {
 }
 
 export interface ServiceVisitReportFilters {
+  startDate: string;
+  endDate: string;
   company?: ReportCompany;
   division?: ReportDivision;
   area?: ReportArea;
@@ -220,6 +226,8 @@ export interface ServiceVisitReportPage {
 }
 
 const serviceVisitParams = (filters: ServiceVisitReportFilters) => ({
+  startDate: filters.startDate,
+  endDate: filters.endDate,
   company: filters.company || undefined,
   division: filters.division || undefined,
   area: filters.area || undefined,

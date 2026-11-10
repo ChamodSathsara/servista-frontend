@@ -17,7 +17,8 @@ import {
 } from '../apis/reports';
 
 export function BreakdownReport({ onBack }: { onBack: () => void }) {
-  const [filters, setFilters] = useState<BreakdownReportFilters>({ page: 0, size: 20 });
+  const year = new Date().getFullYear();
+  const [filters, setFilters] = useState<BreakdownReportFilters>({ startDate: `${year}-01-01`, endDate: `${year}-12-31`, page: 0, size: 20 });
   const [result, setResult] = useState<BreakdownReportPage | null>(null);
   const [selectedRow, setSelectedRow] = useState<BreakdownJobReportRow | null>(null);
   const [loading, setLoading] = useState(false);
@@ -60,6 +61,8 @@ export function BreakdownReport({ onBack }: { onBack: () => void }) {
 
     <div className="mt-6 rounded-xl border border-line bg-white p-5 shadow-sm">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <Field label="Start date"><input type="date" value={filters.startDate} onChange={(event) => setFilters((value) => ({ ...value, startDate: event.target.value, page: 0 }))} className="report-control" /></Field>
+        <Field label="End date"><input type="date" value={filters.endDate} onChange={(event) => setFilters((value) => ({ ...value, endDate: event.target.value, page: 0 }))} className="report-control" /></Field>
         <Field label="Search Q-number / Tech code"><input value={filters.search ?? ''} onChange={(event) => setFilters((value) => ({ ...value, search: event.target.value, page: 0 }))} onKeyDown={(event) => { if (event.key === 'Enter') void load(); }} placeholder="Q000001 or T001" className="report-control" /></Field>
         <Field label="Company"><select value={filters.company ?? ''} onChange={(event) => setFilters((value) => ({ ...value, company: (event.target.value || undefined) as ReportCompany | undefined, page: 0 }))} className="report-control"><option value="">All companies</option><option value="GESTETNER">Gestetner</option><option value="FINTECH">Fintech</option></select></Field>
         <Field label="Division"><select value={filters.division ?? ''} onChange={(event) => setFilters((value) => ({ ...value, division: (event.target.value || undefined) as ReportDivision | undefined, page: 0 }))} className="report-control"><option value="">All divisions</option>{['RENTAL','OUTRIGHT','WORKSHOP','AC','PRODUCTION','ELECTRONIC'].map((value) => <option key={value} value={value}>{pretty(value)}</option>)}</select></Field>

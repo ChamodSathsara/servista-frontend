@@ -11,7 +11,8 @@ import {
 } from '../apis/reports';
 
 export function ServiceVisitReport({ onBack }: { onBack: () => void }) {
-  const [filters, setFilters] = useState<ServiceVisitReportFilters>({ page: 0, size: 20 });
+  const year = new Date().getFullYear();
+  const [filters, setFilters] = useState<ServiceVisitReportFilters>({ startDate: `${year}-01-01`, endDate: `${year}-12-31`, page: 0, size: 20 });
   const [result, setResult] = useState<ServiceVisitReportPage | null>(null);
   const [selectedRow, setSelectedRow] = useState<ServiceVisitReportRow | null>(null);
   const [loading, setLoading] = useState(false);
@@ -35,6 +36,8 @@ export function ServiceVisitReport({ onBack }: { onBack: () => void }) {
     <div className="mt-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"><div><h1 className="text-2xl font-semibold text-ink">Service Visit Report</h1><p className="mt-1 text-sm font-medium text-brand-700">Scheduled, due and completed site service visits</p></div><div className="flex gap-2"><button type="button" disabled={!!downloading} onClick={() => void download('pdf')} className="flex h-10 items-center gap-2 rounded-lg border border-line bg-white px-4 text-sm font-semibold text-ink shadow-sm disabled:opacity-50"><FileTextIcon className="h-4 w-4 text-rose-600" />{downloading === 'pdf' ? 'Preparing…' : 'Download PDF'}</button><button type="button" disabled={!!downloading} onClick={() => void download('excel')} className="flex h-10 items-center gap-2 rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white shadow-sm disabled:opacity-50"><FileSpreadsheetIcon className="h-4 w-4" />{downloading === 'excel' ? 'Preparing…' : 'Download Excel'}</button></div></div>
 
     <div className="mt-6 rounded-xl border border-line bg-white p-5 shadow-sm"><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <Field label="Start date"><input type="date" value={filters.startDate} onChange={(e) => setFilters(f => ({ ...f, startDate: e.target.value, page: 0 }))} className="visit-control" /></Field>
+      <Field label="End date"><input type="date" value={filters.endDate} onChange={(e) => setFilters(f => ({ ...f, endDate: e.target.value, page: 0 }))} className="visit-control" /></Field>
       <Field label="Search Q-number / Tech code"><input value={filters.search ?? ''} onChange={(e) => setFilters(f => ({ ...f, search: e.target.value, page: 0 }))} onKeyDown={(e) => { if (e.key === 'Enter') void load(); }} placeholder="Q000001 or T001" className="visit-control" /></Field>
       <Field label="Company"><select value={filters.company ?? ''} onChange={(e) => setFilters(f => ({ ...f, company: (e.target.value || undefined) as ReportCompany | undefined, page: 0 }))} className="visit-control"><option value="">All companies</option><option value="GESTETNER">Gestetner</option><option value="FINTECH">Fintech</option></select></Field>
       <Field label="Division"><select value={filters.division ?? ''} onChange={(e) => setFilters(f => ({ ...f, division: (e.target.value || undefined) as ReportDivision | undefined, page: 0 }))} className="visit-control"><option value="">All divisions</option>{['RENTAL','OUTRIGHT','WORKSHOP','AC','PRODUCTION','ELECTRONIC'].map(v => <option key={v} value={v}>{pretty(v)}</option>)}</select></Field>
