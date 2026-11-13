@@ -1,22 +1,26 @@
-import { DashboardHeader } from '../components/dashboard/DashboardHeader';
-import { FleetHealthPanel } from '../components/dashboard/FleetHealthPanel';
-import { TeamTodayPanel } from '../components/dashboard/TeamTodayPanel';
-import { AttentionList } from '../components/dashboard/AttentionList';
-import { RecentActivity } from '../components/dashboard/RecentActivity';
-import { ServiceVolumeChart } from '../components/dashboard/ServiceVolumeChart';
+'use client';
+import {useEffect,useState} from 'react';
+import {AlertTriangleIcon,CalendarCheckIcon,CheckCircle2Icon,WrenchIcon} from 'lucide-react';
+import {CartesianGrid,Legend,Line,LineChart,ResponsiveContainer,Tooltip,XAxis,YAxis} from 'recharts';
+import {toast} from 'sonner';
+import {getDashboardSummary,type DashboardSummary} from '../apis/dashboard';
 
-export function Dashboard() {
-  return (
-    <div className="mx-auto max-w-7xl">
-      <DashboardHeader />
-
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <FleetHealthPanel />
-        <TeamTodayPanel />
-        <AttentionList />
-        <RecentActivity />
-        <ServiceVolumeChart />
-      </div>
-    </div>);
-
+const palette={pending:'#F59E0B',completed:'#16A34A',started:'#2563EB',cancelled:'#DC2626',total:'#0F766E'};
+export function Dashboard(){
+ const [data,setData]=useState<DashboardSummary|null>(null),[loading,setLoading]=useState(true),[company,setCompany]=useState('');
+ useEffect(()=>{setLoading(true);getDashboardSummary(company||undefined).then(setData).catch(e=>toast.error(e instanceof Error?e.message:'Unable to load dashboard')).finally(()=>setLoading(false))},[company]);
+ if(loading&&!data)return <div className="py-24 text-center text-ink-muted">Loading dashboard…</div>;
+ if(!data)return <div className="py-24 text-center text-danger-700">Dashboard data is unavailable.</div>;
+ const chart=data.dailyJobs.map(x=>({...x,label:new Date(`${x.date}T00:00:00`).toLocaleDateString(undefined,{month:'2-digit',day:'2-digit'})}));
+ return <div className="mx-auto max-w-[1500px] space-y-6"><header><p className="text-xs font-bold tracking-[.2em] text-brand-700">OPERATIONS OVERVIEW</p><h1 className="mt-1 text-3xl font-semibold tracking-tight">Service dashboard</h1><p className="mt-1 text-sm text-ink-muted">Year-to-date performance and daily service progress for {data.year}.</p></header>
+ <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"><Kpi icon={<WrenchIcon/>} label="Total Jobs (Breakdowns)" value={data.totalBreakdownsYtd} tone="blue"/><Kpi icon={<CheckCircle2Icon/>} label="Complete Jobs" value={data.completedBreakdownsYtd} tone="green"/><Kpi icon={<CalendarCheckIcon/>} label="Total Services (Service Visits)" value={data.totalServiceVisitsYtd} tone="amber"/><Kpi icon={<CheckCircle2Icon/>} label="Completed Services" value={data.completedServiceVisitsYtd} tone="green"/></div>
+ <Panel title="Technician Summary – Daily Jobs" subtitle="Service schedules and breakdowns progress"><div className="h-[340px]"><ResponsiveContainer width="100%" height="100%"><LineChart data={chart} margin={{top:10,right:18,left:-12}}><CartesianGrid strokeDasharray="3 3" stroke="#E5ECEA"/><XAxis dataKey="label" tick={{fontSize:12}}/><YAxis allowDecimals={false} tick={{fontSize:12}}/><Tooltip contentStyle={{borderRadius:12}}/><Legend iconType="circle"/><Line dataKey="pending" name="Pending Jobs" stroke={palette.pending} strokeWidth={2}/><Line dataKey="completed" name="Completed Jobs" stroke={palette.completed} strokeWidth={2}/><Line dataKey="started" name="Started Jobs" stroke={palette.started} strokeWidth={2}/><Line dataKey="cancelled" name="Cancelled Jobs" stroke={palette.cancelled} strokeWidth={2}/><Line dataKey="total" name="Total Jobs" stroke={palette.total} strokeWidth={3}/></LineChart></ResponsiveContainer></div></Panel>
+ <div className="grid gap-6 xl:grid-cols-5"><div className="xl:col-span-2"><Panel title="Top Technician Performance" subtitle="Completed breakdowns and service visits"><div className="space-y-3">{data.topTechnicians.length?data.topTechnicians.map((x,i)=><div key={x.technicianId} className="rounded-xl border border-line p-4"><div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-50 font-bold text-brand-700">{i+1}</span><div className="min-w-0 flex-1"><p className="truncate font-semibold">{x.technicianName}</p><p className="text-xs text-ink-muted">{x.techCode} · {x.completedJobs}/{x.totalJobs} completed</p></div><span className="text-lg font-bold text-brand-700">{x.percentage.toFixed(1)}%</span></div><div className="mt-3 h-2 overflow-hidden rounded-full bg-line"><div className="h-full bg-brand-500" style={{width:`${Math.min(100,x.percentage)}%`}}/></div></div>):<Empty/>}</div></Panel></div><div className="xl:col-span-3"><WarrantyPanel data={data} company={company} onCompany={setCompany}/></div></div>
+ <div className="grid gap-6 xl:grid-cols-2"><OverduePanel title="5 Overdue Breakdowns | YTD" icon={<AlertTriangleIcon className="h-5 w-5"/>} rows={data.overdueBreakdowns.map(x=>({id:x.breakdownId,reference:x.breakdownNumber,machine:x.machineReferenceNumber,site:x.siteName,date:x.expectedCompletionAt,days:x.overdueDays}))}/><OverduePanel title="5 Overdue Site Visits | YTD" icon={<CalendarCheckIcon className="h-5 w-5"/>} rows={data.overdueServiceVisits.map(x=>({id:x.serviceScheduleId,reference:x.agreementNumber,machine:x.machineReferenceNumber,site:x.siteName,date:x.expectedVisitDate,days:x.overdueDays}))}/></div></div>;
 }
+function Kpi({icon,label,value,tone}:{icon:React.ReactNode;label:string;value:number;tone:'blue'|'green'|'amber'}){const cls={blue:'bg-blue-50 text-blue-700',green:'bg-emerald-50 text-emerald-700',amber:'bg-amber-50 text-amber-700'}[tone];return <div className="rounded-2xl border border-line bg-white p-5 shadow-sm"><div className="flex justify-between"><div><p className="text-sm text-ink-muted">{label}</p><p className="mt-3 text-4xl font-bold">{value.toLocaleString()}</p><p className="mt-1 text-xs font-semibold text-ink-subtle">YTD</p></div><span className={`h-fit rounded-xl p-3 [&>svg]:h-6 [&>svg]:w-6 ${cls}`}>{icon}</span></div></div>}
+function Panel({title,subtitle,children}:{title:string;subtitle?:string;children:React.ReactNode}){return <section className="h-full rounded-2xl border border-line bg-white p-5 shadow-sm"><div className="mb-5"><h2 className="text-lg font-semibold">{title}</h2>{subtitle&&<p className="mt-1 text-sm text-ink-muted">{subtitle}</p>}</div>{children}</section>}
+function WarrantyPanel({data,company,onCompany}:{data:DashboardSummary;company:string;onCompany:(x:string)=>void}){const x=data.warrantySummary;return <Panel title="Year To Date Customer Warranty Details Report Summary" subtitle="Filter warranty coverage by company"><div className="mb-5 max-w-xs"><label className="text-xs font-semibold uppercase text-ink-muted">Company</label><select value={company} onChange={e=>onCompany(e.target.value)} className="mt-1 h-10 w-full rounded-lg border border-line bg-white px-3"><option value="">All companies</option><option value="GESTETNER">GESTETNER</option><option value="FINTECH">FINTECH</option></select></div><div className="grid grid-cols-2 gap-3 lg:grid-cols-5"><W label="Total" value={x.total}/><W label="Active" value={x.active} cls="text-emerald-700"/><W label="Expiring ≤30 days" value={x.expiringNext30Days} cls="text-amber-700"/><W label="Expired" value={x.expired} cls="text-red-700"/><W label="Voided" value={x.voided} cls="text-slate-600"/></div></Panel>}
+function W({label,value,cls='text-ink'}:{label:string;value:number;cls?:string}){return <div className="rounded-xl bg-canvas p-4"><p className="text-xs text-ink-muted">{label}</p><p className={`mt-2 text-2xl font-bold ${cls}`}>{value}</p></div>}
+function OverduePanel({title,icon,rows}:{title:string;icon:React.ReactNode;rows:Array<{id:number;reference:string;machine:string;site:string;date:string;days:number}>}){return <Panel title={title}><div className="mb-3 flex items-center gap-2 text-red-600">{icon}<span className="text-xs font-semibold">Needs immediate attention</span></div>{rows.length?<div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead className="text-xs uppercase text-ink-subtle"><tr><th className="py-2">Reference</th><th>Machine / Site</th><th>Due</th><th className="text-right">Overdue</th></tr></thead><tbody>{rows.map(x=><tr key={x.id} className="border-t border-line"><td className="py-3 font-semibold">{x.reference}</td><td><p>{x.machine}</p><p className="text-xs text-ink-muted">{x.site}</p></td><td className="text-ink-muted">{new Date(x.date).toLocaleDateString()}</td><td className="text-right font-semibold text-red-600">{x.days} days</td></tr>)}</tbody></table></div>:<Empty/>}</Panel>}
+function Empty(){return <p className="rounded-xl bg-canvas p-8 text-center text-sm text-ink-muted">No records found.</p>}
