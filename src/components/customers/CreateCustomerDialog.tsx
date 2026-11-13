@@ -16,6 +16,7 @@ interface CreateCustomerDialogProps {
   open: boolean;
   onClose: () => void;
   onCreate: (values: CustomerFormValues) => Promise<void>;
+  salesmenOptions?: SalesmanResponse[];
 }
 
 const grades: {value: CustomerGrade;hint: string;}[] = [
@@ -28,8 +29,8 @@ const types: CustomerType[] = ['DEALER', 'CREDIT_CUSTOMER', 'INTERNAL_CUSTOMER']
 const segments: CustomerSegment[] = ['AIRLINE_TRAVEL_TOUR', 'ARMED_FORCES', 'BANK_GOV', 'BANK_PRIVATE', 'CONSTRUCTION', 'CORPORATE', 'DEALER', 'DEPARTMENTS', 'EDUCATION_GOV', 'EDUCATION_PRIVATE', 'EMBASSIES', 'FINANCIAL_INSTITUTE', 'GOVERNMENT', 'GOVERNMENT_BANKS', 'HEALTH', 'INDIVIDUAL', 'MANUFACTURING_DISTRIBUTION', 'MEDIA', 'MINISTRIES', 'NGO', 'OTHERS', 'PRIVATE', 'PRIVATE_BANKS', 'SHIPPING_FREIGHT_FORWARDING', 'SME', 'TELECOMMUNICATION'];
 const companies: Company[] = ['FINTECH', 'GESTETNER'];
 
-export function CreateCustomerDialog({ open, onClose, onCreate }: CreateCustomerDialogProps) {
-  const [salesmen, setSalesmen] = useState<SalesmanResponse[]>([]);
+export function CreateCustomerDialog({ open, onClose, onCreate, salesmenOptions }: CreateCustomerDialogProps) {
+  const [salesmen, setSalesmen] = useState<SalesmanResponse[]>(salesmenOptions ?? []);
   const [salesmenLoading, setSalesmenLoading] = useState(true);
   const [salesmenError, setSalesmenError] = useState<string | null>(null);
   const form = useCreateCustomerForm(onCreate);
@@ -53,13 +54,19 @@ export function CreateCustomerDialog({ open, onClose, onCreate }: CreateCustomer
   }, []);
 
   useEffect(() => {
+    if (salesmenOptions) {
+      setSalesmen(salesmenOptions);
+      setSalesmenLoading(false);
+      setSalesmenError(null);
+      return;
+    }
     let cancelled = false;
     getSalesmen()
       .then((response) => { if (!cancelled) setSalesmen(response); })
       .catch((error: unknown) => { if (!cancelled) setSalesmenError(error instanceof Error ? error.message : 'Unable to load salesmen.'); })
       .finally(() => { if (!cancelled) setSalesmenLoading(false); });
     return () => { cancelled = true; };
-  }, []);
+  }, [salesmenOptions]);
 
   const handleClose = () => {
     if (form.submitting) return;

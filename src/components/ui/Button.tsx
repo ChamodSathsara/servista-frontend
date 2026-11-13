@@ -1,7 +1,7 @@
 import React from 'react';
 import { LoaderCircleIcon } from 'lucide-react';
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost';
+type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
@@ -12,6 +12,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 const variantClass: Record<ButtonVariant, string> = {
   primary: 'bg-brand-500 text-white hover:bg-brand-600 active:bg-brand-700 shadow-sm',
   secondary: 'bg-white text-ink border border-line hover:bg-canvas active:bg-line/60',
+  outline: 'bg-white text-ink border border-line hover:bg-canvas active:bg-line/60',
   ghost: 'text-ink-muted hover:bg-canvas hover:text-ink'
 };
 
