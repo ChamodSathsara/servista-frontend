@@ -21,22 +21,28 @@ import {
   type BreakdownReportedByType,
   type BreakdownResponse,
 } from "../apis/breakdowns";
+
 import { getMachines, type MachineResponse } from "../apis/machines";
+
 import {
   getMeterCounterTypes,
   type MeterCounterTypeResponse,
 } from "../apis/meterReadings";
+
 import { getTechnicians, type TechnicianResponse } from "../apis/technicians";
+
 import {
   getSolutionTypes,
   type SolutionTypeResponse,
 } from "../apis/solutionTypes";
+
 import { Button } from "../components/ui/Button";
 import { Drawer } from "../components/ui/Drawer";
 import { FormField } from "../components/ui/FormField";
 import { Modal } from "../components/ui/Modal";
 import { StatusBadge, type BadgeTone } from "../components/ui/StatusBadge";
 import { fieldClass } from "../utils/styles";
+
 import { getCurrentUser, isTechnician, technicianIdForUser } from "../utils/session";
 
 const tone = (status: string): BadgeTone =>
