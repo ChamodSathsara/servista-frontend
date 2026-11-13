@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import { toast } from "sonner";
+
 import {
   cancelBreakdown,
   changeBreakdownTechnician,
@@ -43,7 +44,11 @@ import { Modal } from "../components/ui/Modal";
 import { StatusBadge, type BadgeTone } from "../components/ui/StatusBadge";
 import { fieldClass } from "../utils/styles";
 
-import { getCurrentUser, isTechnician, technicianIdForUser } from "../utils/session";
+import {
+  getCurrentUser,
+  isTechnician,
+  technicianIdForUser,
+} from "../utils/session";
 
 const tone = (status: string): BadgeTone =>
   status === "COMPLETED"
@@ -112,8 +117,12 @@ export function Breakdowns() {
     try {
       const [a, b, c, d, e] = await Promise.all([
         getBreakdowns(),
-        technicianMode ? Promise.resolve([] as MachineResponse[]) : getMachines(),
-        technicianMode ? Promise.resolve([] as TechnicianResponse[]) : getTechnicians(),
+        technicianMode
+          ? Promise.resolve([] as MachineResponse[])
+          : getMachines(),
+        technicianMode
+          ? Promise.resolve([] as TechnicianResponse[])
+          : getTechnicians(),
         getSolutionTypes(),
         getMeterCounterTypes(),
       ]);
@@ -133,7 +142,9 @@ export function Breakdowns() {
     Promise.all([
       getBreakdowns(),
       technicianMode ? Promise.resolve([] as MachineResponse[]) : getMachines(),
-      technicianMode ? Promise.resolve([] as TechnicianResponse[]) : getTechnicians(),
+      technicianMode
+        ? Promise.resolve([] as TechnicianResponse[])
+        : getTechnicians(),
       getSolutionTypes(),
       getMeterCounterTypes(),
     ])
@@ -424,9 +435,11 @@ export function Breakdowns() {
             {items.length} breakdown calls
           </p>
         </div>
-        {!technicianMode && <Button icon={<PlusIcon className="h-4 w-4" />} onClick={openCreate}>
-          Create breakdown
-        </Button>}
+        {!technicianMode && (
+          <Button icon={<PlusIcon className="h-4 w-4" />} onClick={openCreate}>
+            Create breakdown
+          </Button>
+        )}
       </div>
       <div className="mt-6 overflow-hidden rounded-xl border border-line bg-white shadow-sm">
         <div className="flex flex-col gap-3 border-b border-line p-4 sm:flex-row">
@@ -450,17 +463,13 @@ export function Breakdowns() {
             className="h-10 rounded-lg border border-line bg-white px-3 text-sm"
           >
             <option value="ALL">All statuses</option>
-            {[
-              "ASSIGNED",
-              "STARTED",
-              "COMPLETED",
-              "RECALL",
-              "CANCELLED",
-            ].map((x) => (
-              <option key={x} value={x}>
-                {label(x)}
-              </option>
-            ))}
+            {["ASSIGNED", "STARTED", "COMPLETED", "RECALL", "CANCELLED"].map(
+              (x) => (
+                <option key={x} value={x}>
+                  {label(x)}
+                </option>
+              ),
+            )}
           </select>
         </div>
         {loading ? (
@@ -524,9 +533,7 @@ export function Breakdowns() {
                       <div className="flex justify-end gap-2">
                         <Button
                           className="h-8 px-3"
-                          disabled={
-                            x.status !== "ASSIGNED"
-                          }
+                          disabled={x.status !== "ASSIGNED"}
                           onClick={(e) => {
                             e.stopPropagation();
                             openStart(x);
@@ -596,9 +603,7 @@ export function Breakdowns() {
                 </div>
                 <div className="mt-5 flex flex-wrap gap-2">
                   <Button
-                    disabled={
-                      selected.status !== "ASSIGNED"
-                    }
+                    disabled={selected.status !== "ASSIGNED"}
                     onClick={() => openStart(selected)}
                   >
                     Start
