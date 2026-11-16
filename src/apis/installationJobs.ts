@@ -19,6 +19,7 @@ export interface InstallationStatusHistory {
 export interface InstallationJobResponse {
   installationJobId: number;
   jobNumber: string;
+  machineReferenceNumber: string | null;
   company: string;
   division: string;
   customerId: number;

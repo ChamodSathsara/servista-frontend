@@ -125,6 +125,7 @@ export function InstallationJobs() {
       const matchesStatus = status === 'ALL' || job.status === status;
       const matchesQuery = !normalizedQuery || [
         job.jobNumber,
+        job.machineReferenceNumber,
         job.customerName,
         job.siteName,
         job.invoiceNumber,
@@ -315,6 +316,7 @@ export function InstallationJobs() {
               <thead className="border-b border-line bg-canvas/60 text-xs text-ink-muted">
                 <tr>
                   <th className="px-5 py-3 font-medium">Job</th>
+                  <th className="px-5 py-3 font-medium">Q Number</th>
                   <th className="px-5 py-3 font-medium">Customer &amp; site</th>
                   <th className="px-5 py-3 font-medium">Technician</th>
                   <th className="px-5 py-3 font-medium">Expected date</th>
@@ -334,6 +336,7 @@ export function InstallationJobs() {
                       <p className="font-mono font-medium text-ink group-hover:text-brand-700">{job.jobNumber}</p>
                       <p className="mt-0.5 text-xs text-ink-subtle">{job.invoiceNumber}</p>
                     </td>
+                    <td className="px-5 py-3.5"><span className="rounded-md bg-brand-50 px-2.5 py-1 font-mono text-sm font-semibold text-brand-800">{job.machineReferenceNumber || '—'}</span></td>
                     <td className="px-5 py-3.5">
                       <p className="font-medium text-ink">{job.customerName}</p>
                       <p className="mt-0.5 text-xs text-ink-subtle">{job.siteName}</p>
@@ -388,6 +391,7 @@ export function InstallationJobs() {
                   <StatusBadge tone={statusTone(selected.status)} label={statusLabel(selected.status)} />
                 </div>
                 <h2 id="installation-job-title" className="mt-2 font-mono text-xl font-semibold text-ink">{selected.jobNumber}</h2>
+                {selected.machineReferenceNumber && <p className="mt-2 font-mono text-sm font-semibold text-brand-700">Q Number: {selected.machineReferenceNumber}</p>}
                 <p className="mt-1 text-sm text-ink-muted">{selected.customerName}</p>
               </div>
 
