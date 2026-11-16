@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { CheckIcon, CopyIcon, LoaderCircleIcon, RefreshCwIcon } from 'lucide-react';
+import { CheckIcon, CopyIcon, LoaderCircleIcon, PlusIcon, RefreshCwIcon } from 'lucide-react';
+import { toast } from 'sonner';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { FormField } from '../ui/FormField';
@@ -11,6 +12,8 @@ import { areas, cities } from '../../data/locations';
 import type { Area } from '../../types/customer';
 import type { ApiCompany as Company, ApiCustomerGrade as CustomerGrade, ApiCustomerSegment as CustomerSegment, ApiCustomerType as CustomerType } from '../../apis/customers';
 import { getSalesmen, type SalesmanResponse } from '../../apis/salesmen';
+import { createSalesman, type CreateSalesmanRequest } from '../../apis/salesmen';
+import { CreateSalesmanDialog } from '../salesmen/CreateSalesmanDialog';
 
 interface CreateCustomerDialogProps {
   open: boolean;
@@ -33,6 +36,7 @@ export function CreateCustomerDialog({ open, onClose, onCreate, salesmenOptions 
   const [salesmen, setSalesmen] = useState<SalesmanResponse[]>(salesmenOptions ?? []);
   const [salesmenLoading, setSalesmenLoading] = useState(true);
   const [salesmenError, setSalesmenError] = useState<string | null>(null);
+  const [salesmanDialog, setSalesmanDialog] = useState(false);
   const form = useCreateCustomerForm(onCreate);
   const { values: v, errors: e, step, setField } = form;
   const isLast = step === customerSteps.length - 1;
@@ -74,6 +78,22 @@ export function CreateCustomerDialog({ open, onClose, onCreate, salesmenOptions 
     onClose();
   };
 
+  const createNewSalesman = async (values: Omit<CreateSalesmanRequest, 'createdBy'>) => {
+    const raw = localStorage.getItem('currentUser') ?? sessionStorage.getItem('currentUser');
+    const userId = raw ? Number((JSON.parse(raw) as { userId?: number }).userId) : 0;
+    if (!userId) throw new Error('Your user session is missing. Please sign in again.');
+    try {
+      const created = await createSalesman({ ...values, createdBy: userId });
+      setSalesmen((current) => [created, ...current.filter((item) => item.salesmanId !== created.salesmanId)]);
+      setField('salesmanId', String(created.salesmanId));
+      setSalesmanDialog(false);
+      toast.success(`${created.user.userName} created and selected`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Salesman creation failed.');
+      throw error;
+    }
+  };
+
   const text = (key: keyof CustomerFormValues, label: string, opts: {required?: boolean;placeholder?: string;type?: string;className?: string;} = {}) =>
   <FormField label={label} htmlFor={`cc-${key}`} required={opts.required} error={e[key]} className={opts.className}>
       <input
@@ -88,10 +108,10 @@ export function CreateCustomerDialog({ open, onClose, onCreate, salesmenOptions 
     </FormField>;
 
 
-  return (
+  return (<>
     <Modal
       open={open}
-      onClose={handleClose}
+      onClose={() => { if (!salesmanDialog) handleClose(); }}
       title="Create customer"
       description="Add the customer, their head office site and who looks after them."
       widthClass="max-w-3xl"
@@ -156,10 +176,9 @@ export function CreateCustomerDialog({ open, onClose, onCreate, salesmenOptions 
                   type="button"
                   aria-pressed={active}
                   onClick={() => setField('grade', g.value)}
-                  className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors duration-150 ${active ? 'border-brand-500 bg-brand-50' : 'border-line hover:bg-canvas'}`}>
+                  className={`flex min-h-11 items-center justify-center rounded-lg border px-3 py-2.5 text-center transition-colors duration-150 ${active ? 'border-brand-500 bg-brand-50 text-brand-800 ring-1 ring-brand-500/20' : 'border-line text-ink hover:bg-canvas'}`}>
                   
-                    <span className={`flex h-7 w-7 items-center justify-center rounded-md text-sm font-semibold ${active ? 'bg-brand-500 text-white' : 'bg-canvas text-ink'}`}>{g.value}</span>
-                    <span className="text-xs text-ink-muted">{g.hint}</span>
+                    <span className="text-sm font-semibold">{g.hint}</span>
                   </button>);
 
             })}
@@ -277,7 +296,7 @@ export function CreateCustomerDialog({ open, onClose, onCreate, salesmenOptions 
       {step === 1 &&
       <div className="space-y-6">
           <fieldset>
-            <legend className="text-sm font-semibold text-ink">Assign salesman<span className="ml-0.5 text-accent-500" aria-hidden="true">*</span></legend>
+            <legend className="flex w-full items-center justify-between gap-3 text-sm font-semibold text-ink"><span>Assign salesman<span className="ml-0.5 text-accent-500" aria-hidden="true">*</span></span><button type="button" onClick={() => setSalesmanDialog(true)} className="inline-flex items-center gap-1 text-xs font-semibold text-brand-700 hover:text-brand-900"><PlusIcon className="h-3.5 w-3.5" />Create</button></legend>
             {salesmenLoading ?
             <div className="mt-3 flex items-center gap-2 rounded-lg border border-line px-4 py-5 text-sm text-ink-muted">
                 <LoaderCircleIcon className="h-4 w-4 animate-spin" aria-hidden="true" /> Loading salesmen…
@@ -330,6 +349,8 @@ export function CreateCustomerDialog({ open, onClose, onCreate, salesmenOptions 
           </section>
         </div>
       }
-    </Modal>);
+    </Modal>
+    <CreateSalesmanDialog open={salesmanDialog} onClose={() => setSalesmanDialog(false)} onCreate={createNewSalesman} />
+  </>);
 
 }
