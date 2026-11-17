@@ -10,7 +10,8 @@ import type { CreateTechnicianRequest, TechnicianArea, TechnicianCompany, Techni
 
 type Values = Omit<CreateTechnicianRequest, 'createdBy'>;
 type Errors = Partial<Record<keyof Values, string>>;
-const empty: Values = { userName: '', mobileNumber: '', email: '', password: '', isActive: true, division: 'RENTAL', area: 'COLOMBO', companies: [], techCode: '', technicianRole: 'TECHNICIAN' };
+const divisionOptions: TechnicianDivision[] = ['OUTRIGHT', 'RENTAL', 'WORKSHOP', 'AC', 'PRODUCTION', 'ELECTRONIC'];
+const empty: Values = { userName: '', mobileNumber: '', email: '', password: '', isActive: true, division: 'RENTAL', divisions: ['RENTAL'], area: 'COLOMBO', cities: '', companies: [], techCode: '', technicianRole: 'TECHNICIAN' };
 
 interface Props { open: boolean; onClose: () => void; onCreate: (values: Values) => Promise<void> }
 
@@ -20,6 +21,17 @@ export function CreateTechOfficerDialog({ open, onClose, onCreate }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const set = <K extends keyof Values>(key: K, value: Values[K]) => { setValues((previous) => ({ ...previous, [key]: value })); setErrors((previous) => ({ ...previous, [key]: undefined })); };
   const close = () => { if (submitting) return; setValues(empty); setErrors({}); onClose(); };
+  const toggleDivision = (division: TechnicianDivision) => {
+    setValues((previous) => {
+      const selected = previous.divisions.includes(division);
+      const divisions = selected
+        ? previous.divisions.filter((item) => item !== division)
+        : [...previous.divisions, division];
+      if (!divisions.length) return previous;
+      return { ...previous, divisions, division: divisions[0] };
+    });
+    setErrors((previous) => ({ ...previous, divisions: undefined }));
+  };
 
   const submit = async () => {
     const next: Errors = {};
@@ -28,6 +40,7 @@ export function CreateTechOfficerDialog({ open, onClose, onCreate }: Props) {
     if (!/^\S+@\S+\.\S+$/.test(values.email)) next.email = 'Enter a valid email address';
     if (values.password.length < 8) next.password = 'Use at least 8 characters';
     if (!values.techCode.trim()) next.techCode = 'Tech code is required';
+    if (!values.divisions.length) next.divisions = 'Select at least one division';
     if (!values.companies.length) next.companies = 'Select at least one company';
     setErrors(next); if (Object.keys(next).length) return;
     setSubmitting(true);
@@ -46,10 +59,13 @@ export function CreateTechOfficerDialog({ open, onClose, onCreate }: Props) {
       {input('userName', 'Full name')}{input('techCode', 'Tech code')}{input('mobileNumber', 'Mobile number', 'tel')}{input('email', 'Email', 'email')}{input('password', 'Temporary password', 'password')}
       <FormField label="Technician role" htmlFor="tech-role" required><select id="tech-role" value={values.technicianRole} onChange={(event) => set('technicianRole', event.target.value as TechnicianRole)} className={fieldClass()}>
         <option value="TECHNICIAN">TECHNICIAN</option><option value="TEAM_LEADER">TEAM LEADER</option><option value="WORKSHOP_TECHNICIAN">WORKSHOP TECHNICIAN</option></select></FormField>
-      <FormField label="Division" htmlFor="tech-division" required><select id="tech-division" value={values.division} onChange={(event) => set('division', event.target.value as TechnicianDivision)} className={fieldClass()}>
-        <option value="OUTRIGHT">OUTRIGHT</option><option value="RENTAL">RENTAL</option><option value="WORKSHOP">WORKSHOP</option></select></FormField>
       <FormField label="Area" htmlFor="tech-area" required><select id="tech-area" value={values.area} onChange={(event) => set('area', event.target.value as TechnicianArea)} className={fieldClass()}>
-        <option value="COLOMBO">COLOMBO</option><option value="SUBURB">SUBURB</option></select></FormField>
+        <option value="COLOMBO">COLOMBO</option><option value="SUBURB">SUBURB</option><option value="OUTSTATION">OUTSTATION</option></select></FormField>
+      <fieldset className="sm:col-span-2"><legend className="mb-2 text-sm font-medium text-ink">Divisions <span className="text-accent-500">*</span></legend><div className="flex flex-wrap gap-2">
+        {divisionOptions.map((division) => { const selected = values.divisions.includes(division); return <button key={division} type="button" onClick={() => toggleDivision(division)}
+          className={`inline-flex h-9 items-center gap-1.5 rounded-full border px-3.5 text-sm ${selected ? 'border-brand-500 bg-brand-50 font-medium text-brand-700' : 'border-line text-ink-muted'}`}>{selected && <CheckIcon className="h-3.5 w-3.5" />}{division}</button>; })}
+      </div>{errors.divisions && <p className="mt-1.5 text-xs text-danger-700">{errors.divisions}</p>}<p className="mt-1.5 text-xs text-ink-subtle">The first selected division is saved as the primary division for existing reports.</p></fieldset>
+      <FormField label="Cities / coverage" htmlFor="tech-cities" className="sm:col-span-2"><textarea id="tech-cities" rows={3} value={values.cities} onChange={(event) => set('cities', event.target.value)} placeholder="e.g. Kandy, Peradeniya" className={fieldClass()} /></FormField>
       <fieldset className="sm:col-span-2"><legend className="mb-2 text-sm font-medium text-ink">Companies <span className="text-accent-500">*</span></legend><div className="flex gap-2">
         {(['GESTETNER', 'FINTECH'] as TechnicianCompany[]).map((company) => { const selected = values.companies.includes(company); return <button key={company} type="button" onClick={() => set('companies', selected ? values.companies.filter((item) => item !== company) : [...values.companies, company])}
           className={`inline-flex h-9 items-center gap-1.5 rounded-full border px-3.5 text-sm ${selected ? 'border-brand-500 bg-brand-50 font-medium text-brand-700' : 'border-line text-ink-muted'}`}>{selected && <CheckIcon className="h-3.5 w-3.5" />}{company}</button>; })}

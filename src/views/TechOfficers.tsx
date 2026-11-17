@@ -46,7 +46,10 @@ export function TechOfficers() {
       if (status === 'active' && !technician.user.isActive) return false;
       if (status === 'inactive' && technician.user.isActive) return false;
       if (!search) return true;
-      return technician.user.userName.toLowerCase().replaceAll(' ', '').includes(search) || technician.techCode.toLowerCase().replaceAll('-', '').includes(search.replaceAll('-', ''));
+      return technician.user.userName.toLowerCase().replaceAll(' ', '').includes(search)
+        || technician.techCode.toLowerCase().replaceAll('-', '').includes(search.replaceAll('-', ''))
+        || (technician.cities ?? '').toLowerCase().replaceAll(' ', '').includes(search)
+        || technician.divisions.some((division) => division.toLowerCase().includes(search));
     });
   }, [query, status, technicians]);
 

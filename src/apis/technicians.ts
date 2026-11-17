@@ -1,8 +1,8 @@
 import { api } from './http';
 
 export type TechnicianCompany = 'GESTETNER' | 'FINTECH';
-export type TechnicianDivision = 'OUTRIGHT' | 'RENTAL' | 'WORKSHOP';
-export type TechnicianArea = 'COLOMBO' | 'SUBURB';
+export type TechnicianDivision = 'OUTRIGHT' | 'RENTAL' | 'WORKSHOP' | 'AC' | 'PRODUCTION' | 'ELECTRONIC';
+export type TechnicianArea = 'COLOMBO' | 'SUBURB' | 'OUTSTATION';
 export type TechnicianRole = 'TECHNICIAN' | 'TEAM_LEADER' | 'WORKSHOP_TECHNICIAN';
 
 export interface TechnicianUser {
@@ -24,6 +24,8 @@ export interface TechnicianResponse {
   techCode: string;
   technicianRole: TechnicianRole;
   companies: TechnicianCompany[];
+  divisions: TechnicianDivision[];
+  cities: string | null;
 }
 
 export interface CreateTechnicianRequest {
@@ -33,7 +35,9 @@ export interface CreateTechnicianRequest {
   password: string;
   isActive: boolean;
   division: TechnicianDivision;
+  divisions: TechnicianDivision[];
   area: TechnicianArea;
+  cities: string;
   createdBy: number;
   companies: TechnicianCompany[];
   techCode: string;

@@ -11,7 +11,7 @@ export function TechOfficersTable({ technicians, onSelect }: Props) {
   return <div className="overflow-x-auto"><table className="w-full min-w-[800px] text-left text-sm">
     <thead className="border-b border-line bg-canvas/60 text-xs text-ink-muted"><tr>
       <th className="px-5 py-3 font-medium">Tech code</th><th className="px-5 py-3 font-medium">Technician</th>
-      <th className="px-5 py-3 font-medium">Role</th><th className="px-5 py-3 font-medium">Division · Area</th>
+      <th className="px-5 py-3 font-medium">Role</th><th className="px-5 py-3 font-medium">Divisions · Area</th><th className="px-5 py-3 font-medium">Cities</th>
       <th className="px-5 py-3 font-medium">Companies</th><th className="px-5 py-3 font-medium">Status</th>
       <th className="w-10 px-3 py-3"><span className="sr-only">Open</span></th>
     </tr></thead>
@@ -22,7 +22,8 @@ export function TechOfficersTable({ technicians, onSelect }: Props) {
       <td className="px-5 py-3.5"><div className="flex items-center gap-3"><span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-50 text-xs font-semibold text-brand-700">{initials(technician.user.userName)}</span>
         <div><p className="font-medium text-ink group-hover:text-brand-700">{technician.user.userName}</p><p className="text-xs text-ink-subtle">{technician.user.mobileNumber}</p></div></div></td>
       <td className="px-5 py-3.5 text-ink-muted">{technician.technicianRole.replaceAll('_', ' ')}</td>
-      <td className="px-5 py-3.5 text-ink-muted">{technician.user.division} · {technician.user.area}</td>
+      <td className="px-5 py-3.5 text-ink-muted">{technician.divisions.join(', ')} · {technician.user.area}</td>
+      <td className="max-w-xs truncate px-5 py-3.5 text-ink-muted" title={technician.cities ?? ''}>{technician.cities || '—'}</td>
       <td className="px-5 py-3.5 text-ink-muted">{technician.companies.join(', ')}</td>
       <td className="px-5 py-3.5"><StatusBadge tone={technician.user.isActive ? 'success' : 'neutral'} label={technician.user.isActive ? 'Active' : 'Inactive'} /></td>
       <td className="px-3 py-3.5 text-ink-subtle"><ChevronRightIcon className="h-4 w-4 group-hover:translate-x-0.5 group-hover:text-brand-600" /></td>

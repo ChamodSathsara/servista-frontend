@@ -28,7 +28,8 @@ export function TechOfficerDrawer({ technician, loading, error, onClose }: Props
           {[
             ['Technician ID', String(technician.technicianId)], ['User ID', String(technician.user.userId)],
             ['Technician role', technician.technicianRole.replaceAll('_', ' ')], ['System role', technician.user.role],
-            ['Division', technician.user.division], ['Area', technician.user.area],
+            ['Divisions', technician.divisions.join(', ')], ['Area', technician.user.area],
+            ['Cities / coverage', technician.cities ?? '—'],
             ['Companies', technician.companies.join(', ')], ['Created by', String(technician.user.createdBy)],
           ].map(([label, value]) => <div key={label}><dt className="text-xs text-ink-subtle">{label}</dt><dd className="mt-1 text-sm font-medium text-ink">{value || '—'}</dd></div>)}
         </dl>
