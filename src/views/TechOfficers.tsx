@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PlusIcon, SearchIcon, SearchXIcon, XIcon } from 'lucide-react';
 import { toast } from 'sonner';
-import { createTechnician, getTechnician, getTechnicians, type CreateTechnicianRequest, type TechnicianCompany, type TechnicianDivision, type TechnicianResponse, type TechnicianRole } from '../apis/technicians';
+import { createTechnician, getTechnician, getTechnicians, type CreateTechnicianRequest, type TechnicianArea, type TechnicianCompany, type TechnicianDivision, type TechnicianResponse, type TechnicianRole } from '../apis/technicians';
 import { ApiError } from '../apis/http';
 import { Button } from '../components/ui/Button';
 import { SegmentedControl } from '../components/ui/SegmentedControl';
@@ -16,6 +16,7 @@ type StatusFilter = 'all' | 'active' | 'inactive';
 type DivisionFilter = 'all' | TechnicianDivision;
 type CompanyFilter = 'all' | TechnicianCompany;
 type RoleFilter = 'all' | TechnicianRole;
+type AreaFilter = 'all' | TechnicianArea;
 
 export function TechOfficers() {
   const [technicians, setTechnicians] = useState<TechnicianResponse[]>([]);
@@ -24,6 +25,7 @@ export function TechOfficers() {
   const [division, setDivision] = useState<DivisionFilter>('all');
   const [company, setCompany] = useState<CompanyFilter>('all');
   const [role, setRole] = useState<RoleFilter>('all');
+  const [area, setArea] = useState<AreaFilter>('all');
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -54,13 +56,14 @@ export function TechOfficers() {
       if (division !== 'all' && !technician.divisions.includes(division)) return false;
       if (company !== 'all' && !technician.companies.includes(company)) return false;
       if (role !== 'all' && technician.technicianRole !== role) return false;
+      if (area !== 'all' && technician.user.area !== area) return false;
       if (!search) return true;
       return technician.user.userName.toLowerCase().replaceAll(' ', '').includes(search)
         || technician.techCode.toLowerCase().replaceAll('-', '').includes(search.replaceAll('-', ''))
         || (technician.cities ?? '').toLowerCase().replaceAll(' ', '').includes(search)
         || technician.divisions.some((division) => division.toLowerCase().includes(search));
     });
-  }, [company, division, query, role, status, technicians]);
+  }, [area, company, division, query, role, status, technicians]);
 
   const activeCount = technicians.filter((technician) => technician.user.isActive).length;
   const currentUserId = () => {
@@ -97,12 +100,15 @@ export function TechOfficers() {
       <div className="flex flex-col gap-3 border-b border-line p-4"><div className="flex flex-col gap-3 xl:flex-row xl:items-center"><div className="flex h-10 flex-1 items-center rounded-lg border border-line focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-500/20 xl:max-w-sm">
         <SearchIcon className="ml-3 h-4 w-4 text-ink-subtle" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search by name or tech code" aria-label="Search technicians" className="h-full min-w-0 flex-1 bg-transparent px-2.5 text-sm outline-none" />
         {query && <button type="button" onClick={() => setQuery('')} className="mr-2 p-1 text-ink-subtle" aria-label="Clear search"><XIcon className="h-4 w-4" /></button>}</div>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 xl:flex xl:items-center">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:flex xl:items-center">
           <select aria-label="Filter by division" value={division} onChange={(event) => setDivision(event.target.value as DivisionFilter)} className="h-10 min-w-36 rounded-lg border border-line bg-white px-3 text-sm text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20">
             <option value="all">All divisions</option><option value="OUTRIGHT">OUTRIGHT</option><option value="RENTAL">RENTAL</option><option value="WORKSHOP">WORKSHOP</option><option value="AC">AC</option><option value="PRODUCTION">PRODUCTION</option><option value="ELECTRONIC">ELECTRONIC</option>
           </select>
           <select aria-label="Filter by company" value={company} onChange={(event) => setCompany(event.target.value as CompanyFilter)} className="h-10 min-w-36 rounded-lg border border-line bg-white px-3 text-sm text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20">
             <option value="all">All companies</option><option value="GESTETNER">GESTETNER</option><option value="FINTECH">FINTECH</option>
+          </select>
+          <select aria-label="Filter by area" value={area} onChange={(event) => setArea(event.target.value as AreaFilter)} className="h-10 min-w-36 rounded-lg border border-line bg-white px-3 text-sm text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20">
+            <option value="all">All areas</option><option value="COLOMBO">COLOMBO</option><option value="SUBURB">SUBURB</option><option value="OUTSTATION">OUTSTATION</option>
           </select>
           <select aria-label="Filter by technician role" value={role} onChange={(event) => setRole(event.target.value as RoleFilter)} className="h-10 min-w-40 rounded-lg border border-line bg-white px-3 text-sm text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20">
             <option value="all">All roles</option><option value="TECHNICIAN">TECHNICIAN</option><option value="TEAM_LEADER">TEAM LEADER</option><option value="WORKSHOP_TECHNICIAN">WORKSHOP TECHNICIAN</option>
@@ -111,7 +117,7 @@ export function TechOfficers() {
         <div className="xl:ml-auto"><SegmentedControl ariaLabel="Filter by status" value={status} onChange={setStatus} options={[
           { value: 'all', label: 'All', count: technicians.length }, { value: 'active', label: 'Active', count: activeCount }, { value: 'inactive', label: 'Inactive', count: technicians.length - activeCount },
         ]} /></div></div>
-        {(division !== 'all' || company !== 'all' || role !== 'all') && <button type="button" onClick={() => { setDivision('all'); setCompany('all'); setRole('all'); }} className="self-start text-xs font-semibold text-brand-700 hover:text-brand-900">Clear division, company and role filters</button>}</div>
+        {(division !== 'all' || company !== 'all' || area !== 'all' || role !== 'all') && <button type="button" onClick={() => { setDivision('all'); setCompany('all'); setArea('all'); setRole('all'); }} className="self-start text-xs font-semibold text-brand-700 hover:text-brand-900">Clear division, company, area and role filters</button>}</div>
       {loading ? <p className="px-6 py-16 text-center text-sm text-ink-muted">Loading technicians…</p> : loadError ?
         <div className="px-6 py-16 text-center"><p className="text-sm text-danger-700">{loadError}</p><Button variant="secondary" className="mt-5" onClick={() => void loadTechnicians()}>Try again</Button></div> : filtered.length ?
         <TechOfficersTable technicians={filtered} onSelect={(technician) => void openDetails(technician)} /> :

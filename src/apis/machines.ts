@@ -26,8 +26,8 @@ export interface MachineResponse {
   createdBy: number; createdAt: string; updatedBy: number | null; updatedAt: string | null;
 }
 
-export interface MachineModelResponse { modelId: number; company: MachineCompany; manufacturerId: number; manufacturerName: string; machineTypeId: number; machineTypeName: string; modelNumber: string; modelName: string; description: string | null; isActive: boolean; createdAt: string; createdBy: number }
-export interface MachineModelRequest { company: MachineCompany; manufacturerId: number; machineTypeId: number; modelNumber: string; modelName: string; description: string | null; isActive: boolean; createdBy?: number }
+export interface MachineModelResponse { modelId: number; company: MachineCompany; companies: MachineCompany[]; manufacturerId: number; manufacturerName: string; machineTypeId: number; machineTypeName: string; modelNumber: string; modelName: string; description: string | null; isActive: boolean; createdAt: string; createdBy: number }
+export interface MachineModelRequest { company: MachineCompany; companies?: MachineCompany[]; manufacturerId: number; machineTypeId: number; modelNumber: string; modelName: string; description: string | null; isActive: boolean; createdBy?: number }
 
 export const getMachines = async () => (await api.get<MachineResponse[]>('/api/machines')).data;
 export const searchMachines = async (query: string) => (await api.get<MachineResponse[]>('/api/machines/search', { params: { query } })).data;
