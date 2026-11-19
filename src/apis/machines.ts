@@ -47,3 +47,30 @@ export const getMachineModels = async () => (await api.get<MachineModelResponse[
 export const createMachineModel = async (request: MachineModelRequest) => (await api.post<MachineModelResponse>('/api/machine-models', request)).data;
 export const updateMachineModel = async (id: number, request: MachineModelRequest) => (await api.put<MachineModelResponse>(`/api/machine-models/${id}`, request)).data;
 export const deleteMachineModel = async (id: number) => { await api.delete(`/api/machine-models/${id}`); };
+
+export interface InitialMachineImportResult {
+  importedMachines: number;
+  generatedVisits: number;
+  autoCompletedVisits: number;
+  machineIds: number[];
+}
+
+export const downloadInitialMachineTemplate = async () => {
+  const response = await api.get('/api/initial-machine-import/template', { responseType: 'blob' });
+  const url = URL.createObjectURL(response.data);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'initial-machine-import-template.xlsx';
+  link.click();
+  URL.revokeObjectURL(url);
+};
+
+export const importInitialMachines = async (file: File, performedBy: number) => {
+  const form = new FormData();
+  form.append('file', file);
+  return (await api.post<InitialMachineImportResult>(
+    `/api/initial-machine-import/import?performedBy=${performedBy}`,
+    form,
+    { headers: { 'Content-Type': 'multipart/form-data' } },
+  )).data;
+};

@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { PlusIcon, SearchIcon, SearchXIcon, XIcon } from "lucide-react";
+import { DownloadIcon, PlusIcon, SearchIcon, SearchXIcon, UploadIcon, XIcon } from "lucide-react";
 import { toast } from "sonner";
 import {
   createMachine,
@@ -16,6 +16,8 @@ import {
   returnMachineToStock,
   getMachineHistory,
   createCustomerSite,
+  downloadInitialMachineTemplate,
+  importInitialMachines,
   type MachineHistoryEvent,
   type MachineModelRequest,
   type MachineModelResponse,
@@ -71,6 +73,7 @@ export function Machines() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [customerCreateOpen, setCustomerCreateOpen] = useState(false);
   const [transferInitialCustomerId, setTransferInitialCustomerId] = useState<number | null>(null);
+  const [importing, setImporting] = useState(false);
   const initialSearch = useRef(true);
 
   const load = useCallback(async () => {
@@ -327,6 +330,19 @@ export function Machines() {
     const created = await createCustomerSite({ site: { customerId, siteName: value.siteName, addressLine1: value.addressLine1, addressLine2: value.addressLine2 || null, addressLine3: value.addressLine3 || null, area: value.area, cityId: value.cityId, latitude: value.latitude, longitude: value.longitude, isHeadOffice: value.isHeadOffice, isActive: true }, contact: { contactName: value.contactName, mobileNumber: value.mobileNumber || null, email: value.email, designation: value.designation || null, isPrimary: true, isActive: true }, performedBy: userId() });
     toast.success(`${created.siteName} created and selected`); return created;
   };
+  const importExcel = async (file?: File) => {
+    if (!file) return;
+    setImporting(true);
+    try {
+      const result = await importInitialMachines(file, userId());
+      toast.success(`${result.importedMachines} machines imported · ${result.generatedVisits} visits generated · ${result.autoCompletedVisits} past visits completed`);
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Unable to import initial machines.");
+    } finally {
+      setImporting(false);
+    }
+  };
   return (
     <div className="mx-auto max-w-7xl">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -347,6 +363,23 @@ export function Machines() {
           Create machine
         </Button>
       </div>
+      <section className="mt-6 rounded-xl border border-line bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-ink">Initial machine Excel import</h2>
+            <p className="mt-1 max-w-3xl text-sm text-ink-muted">Import existing machines with customer/site, invoice, main and service technicians, agreement and generated service visits. Past visits are completed automatically.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" onClick={() => void downloadInitialMachineTemplate()}>
+              <DownloadIcon className="mr-2 h-4 w-4" />Download template
+            </Button>
+            <label className={`inline-flex items-center rounded-lg bg-brand-700 px-4 py-2 text-sm font-semibold text-white ${importing ? "cursor-wait opacity-60" : "cursor-pointer hover:bg-brand-800"}`}>
+              <UploadIcon className="mr-2 h-4 w-4" />{importing ? "Importing…" : "Upload completed Excel"}
+              <input type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" disabled={importing} className="hidden" onChange={(event) => { void importExcel(event.target.files?.[0]); event.currentTarget.value = ""; }} />
+            </label>
+          </div>
+        </div>
+      </section>
       <div className="mt-6 overflow-hidden rounded-xl border border-line bg-white shadow-sm">
         <div className="border-b border-line p-4">
           <div className="flex h-10 max-w-xl items-center rounded-lg border border-line focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-500/20">

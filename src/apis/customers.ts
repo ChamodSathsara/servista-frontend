@@ -1,7 +1,7 @@
 import { api } from './http';
 
 export type ApiCustomerGrade = 'STRONG' | 'GOOD' | 'WEAK' | 'UNKNOWN';
-export type ApiCustomerType = 'DEALER' | 'CREDIT_CUSTOMER' | 'INTERNAL_CUSTOMER';
+export type ApiCustomerType = 'DEALER' | 'CREDIT_CUSTOMER' | 'INTERNAL_CUSTOMER' | 'EXISTING_CUSTOMER';
 export type ApiCompany = 'FINTECH' | 'GESTETNER';
 export type ApiCustomerSegment =
   | 'AIRLINE_TRAVEL_TOUR'
