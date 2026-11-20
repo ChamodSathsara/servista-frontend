@@ -48,6 +48,12 @@ export const getMachinesPage = async (params: { page?: number; size?: number; qu
   } })).data;
 export const searchMachines = async (query: string) => (await api.get<MachineResponse[]>('/api/machines/search', { params: { query } })).data;
 export const getMachine = async (id: number) => (await api.get<MachineResponse>(`/api/machines/${id}`)).data;
+export const getMachinesByCustomer = async (customerId: number) =>
+  (await api.get<MachineResponse[]>(`/api/machines/customer/${customerId}`)).data;
+export const getCustomerMachineCounts = async (customerIds: number[]) =>
+  (await api.get<Record<string, number>>('/api/machines/customer-counts', {
+    params: { customerIds: customerIds.join(',') },
+  })).data;
 export const createMachine = async (request: MachineRequest) => (await api.post<MachineResponse>('/api/machines', request)).data;
 export const updateMachine = async (id: number, request: MachineRequest) => (await api.put<MachineResponse>(`/api/machines/${id}`, request)).data;
 export const deleteMachine = async (id: number) => { await api.delete(`/api/machines/${id}`); };

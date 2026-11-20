@@ -9,8 +9,8 @@ import { SegmentedControl } from '../components/ui/SegmentedControl';
 import { CustomersTable } from '../components/customers/CustomersTable';
 import { CustomerMachinesDrawer } from '../components/customers/CustomerMachinesDrawer';
 import { CreateCustomerDialog } from '../components/customers/CreateCustomerDialog';
-import { machines } from '../data/machines';
 import { createCustomer, getCustomersPage, type ApiCustomerGrade, type ApiCustomerSegment, type ApiCustomerType, type CustomerResponse } from '../apis/customers';
+import { getCustomerMachineCounts, getMachinesByCustomer, type MachineResponse } from '../apis/machines';
 import { ApiError } from '../apis/http';
 import type { CustomerFormValues } from '../hooks/useCreateCustomerForm';
 import type { Customer, CustomerGrade } from '../types/customer';
@@ -27,6 +27,9 @@ export function Customers() {
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
   const [searching, setSearching] = useState(false);
+  const [machineCounts, setMachineCounts] = useState<Map<number, number>>(new Map());
+  const [customerMachines, setCustomerMachines] = useState<MachineResponse[]>([]);
+  const [machinesLoading, setMachinesLoading] = useState(false);
   const [scope, setScope] = useState<SearchScope>('name');
   const [status, setStatus] = useState<StatusFilter>('all');
   const [grade, setGrade] = useState<'all' | CustomerGrade>('all');
@@ -115,11 +118,24 @@ export function Customers() {
     };
   }, [grade, page, query, scope, status, toCustomer]);
 
-  const machineCounts = useMemo(() => {
-    const counts = new Map<number, number>();
-    machines.forEach((m) => counts.set(m.customerId, (counts.get(m.customerId) ?? 0) + 1));
-    return counts;
-  }, []);
+  useEffect(() => {
+    let cancelled = false;
+    const ids = customers.map((customer) => customer.customerId);
+    if (ids.length === 0) {
+      setMachineCounts(new Map());
+      return;
+    }
+    getCustomerMachineCounts(ids)
+      .then((counts) => {
+        if (!cancelled) {
+          setMachineCounts(new Map(ids.map((id) => [id, counts[String(id)] ?? 0])));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setMachineCounts(new Map(ids.map((id) => [id, 0])));
+      });
+    return () => { cancelled = true; };
+  }, [customers]);
 
   const filtered = customers;
 
@@ -167,6 +183,25 @@ export function Customers() {
   };
 
   const selected = customers.find((c) => c.customerId === selectedId) ?? null;
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!selectedId) {
+      setCustomerMachines([]);
+      return;
+    }
+    setMachinesLoading(true);
+    getMachinesByCustomer(selectedId)
+      .then((results) => { if (!cancelled) setCustomerMachines(results); })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setCustomerMachines([]);
+          toast.error(error instanceof Error ? error.message : 'Unable to load customer machines.');
+        }
+      })
+      .finally(() => { if (!cancelled) setMachinesLoading(false); });
+    return () => { cancelled = true; };
+  }, [selectedId]);
 
   return (
     <div className="mx-auto max-w-7xl">
@@ -280,7 +315,7 @@ export function Customers() {
         </div>
       </div>
 
-      <CustomerMachinesDrawer customer={selected} onClose={() => setSelectedId(null)} />
+      <CustomerMachinesDrawer customer={selected} machines={customerMachines} loading={machinesLoading} onClose={() => setSelectedId(null)} />
       <CreateCustomerDialog open={createOpen} onClose={() => setCreateOpen(false)} onCreate={handleCreate} />
     </div>);
 

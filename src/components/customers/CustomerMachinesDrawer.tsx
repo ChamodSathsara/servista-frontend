@@ -1,33 +1,30 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { MailIcon, MapPinIcon, PhoneIcon, PrinterIcon, UserIcon } from 'lucide-react';
 import { Drawer } from '../ui/Drawer';
 import { StatusBadge } from '../ui/StatusBadge';
 import { SegmentedControl } from '../ui/SegmentedControl';
-import { machines } from '../../data/machines';
 import { salesmen } from '../../data/salesmen';
-import { formatDate, formatNumber } from '../../utils/format';
-import { machineStatusTone } from '../../utils/status';
-import type { Customer, MachineStatus } from '../../types/customer';
+import type { Customer } from '../../types/customer';
+import type { MachineResponse } from '../../apis/machines';
 
 interface CustomerMachinesDrawerProps {
   customer: Customer | null;
+  machines: MachineResponse[];
+  loading: boolean;
   onClose: () => void;
 }
 
 type MachineFilter = 'all' | 'attention';
 
-export function CustomerMachinesDrawer({ customer, onClose }: CustomerMachinesDrawerProps) {
+export function CustomerMachinesDrawer({ customer, machines: customerMachines, loading, onClose }: CustomerMachinesDrawerProps) {
   const [filter, setFilter] = useState<MachineFilter>('all');
 
-  const customerMachines = useMemo(
-    () => customer ? machines.filter((m) => m.customerId === customer.customerId) : [],
-    [customer]
-  );
-  const needsAttention = (s: MachineStatus) => s === 'Breakdown' || s === 'Under Service';
-  const attentionCount = customerMachines.filter((m) => needsAttention(m.status)).length;
-  const visible = filter === 'attention' ? customerMachines.filter((m) => needsAttention(m.status)) : customerMachines;
+  const needsAttention = (status: MachineResponse['currentStatus']) =>
+    status === 'OUT_OF_SERVICE' || status === 'RETURNED' || status === 'REMOVED';
+  const attentionCount = customerMachines.filter((m) => needsAttention(m.currentStatus)).length;
+  const visible = filter === 'attention' ? customerMachines.filter((m) => needsAttention(m.currentStatus)) : customerMachines;
   const salesman = customer ? salesmen.find((s) => s.salesmanId === customer.salesmanId) : undefined;
 
   return (
@@ -117,7 +114,9 @@ export function CustomerMachinesDrawer({ customer, onClose }: CustomerMachinesDr
             }
             </div>
 
-            {customerMachines.length === 0 ?
+            {loading ?
+          <div className="mt-6 rounded-xl border border-line px-6 py-12 text-center text-sm text-ink-muted">Loading machines…</div> :
+            customerMachines.length === 0 ?
           <div className="mt-6 flex flex-col items-center rounded-xl border border-dashed border-line px-6 py-12 text-center">
                 <PrinterIcon className="h-8 w-8 text-ink-subtle" aria-hidden="true" />
                 <p className="mt-3 text-sm font-medium text-ink">No machines registered yet</p>
@@ -132,8 +131,8 @@ export function CustomerMachinesDrawer({ customer, onClose }: CustomerMachinesDr
                     <tr>
                       <th scope="col" className="px-4 py-2.5 font-medium">Machine</th>
                       <th scope="col" className="px-4 py-2.5 font-medium">Site</th>
-                      <th scope="col" className="px-4 py-2.5 font-medium">Contract</th>
-                      <th scope="col" className="px-4 py-2.5 text-right font-medium">Meter</th>
+                      <th scope="col" className="px-4 py-2.5 font-medium">Q number</th>
+                      <th scope="col" className="px-4 py-2.5 font-medium">Company</th>
                       <th scope="col" className="px-4 py-2.5 font-medium">Status</th>
                     </tr>
                   </thead>
@@ -141,17 +140,16 @@ export function CustomerMachinesDrawer({ customer, onClose }: CustomerMachinesDr
                     {visible.map((m) =>
                 <tr key={m.machineId}>
                         <td className="px-4 py-3">
-                          <p className="font-medium text-ink">{m.brand} {m.model}</p>
+                          <p className="font-medium text-ink">{m.modelNumber} · {m.modelName}</p>
                           <p className="font-mono text-xs text-ink-subtle">{m.serialNumber}</p>
                         </td>
                         <td className="px-4 py-3 text-ink-muted">{m.siteName}</td>
                         <td className="px-4 py-3">
-                          <p className="text-ink">{m.contractType}</p>
-                          <p className="text-xs text-ink-subtle">Serviced {formatDate(m.lastServiceDate)}</p>
+                          <p className="font-mono text-ink">{m.machineReferenceNumber}</p>
                         </td>
-                        <td className="px-4 py-3 text-right tabular-nums text-ink-muted">{formatNumber(m.meterReading)}</td>
+                        <td className="px-4 py-3 text-ink-muted">{m.company} · {m.division}</td>
                         <td className="px-4 py-3">
-                          <StatusBadge tone={machineStatusTone[m.status]} label={m.status} />
+                          <StatusBadge tone={needsAttention(m.currentStatus) ? 'danger' : 'success'} label={m.currentStatus.replaceAll('_', ' ')} />
                         </td>
                       </tr>
                 )}
