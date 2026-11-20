@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { PlusIcon, SearchIcon, SearchXIcon, XIcon } from 'lucide-react';
+import { ChevronLeftIcon, ChevronRightIcon, PlusIcon, SearchIcon, SearchXIcon, XIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '../components/ui/Button';
 import { SegmentedControl } from '../components/ui/SegmentedControl';
@@ -10,7 +10,7 @@ import { CustomersTable } from '../components/customers/CustomersTable';
 import { CustomerMachinesDrawer } from '../components/customers/CustomerMachinesDrawer';
 import { CreateCustomerDialog } from '../components/customers/CreateCustomerDialog';
 import { machines } from '../data/machines';
-import { createCustomer, getCustomers, type ApiCustomerGrade, type ApiCustomerSegment, type ApiCustomerType, type CustomerResponse } from '../apis/customers';
+import { createCustomer, getCustomersPage, type ApiCustomerGrade, type ApiCustomerSegment, type ApiCustomerType, type CustomerResponse } from '../apis/customers';
 import { ApiError } from '../apis/http';
 import type { CustomerFormValues } from '../hooks/useCreateCustomerForm';
 import type { Customer, CustomerGrade } from '../types/customer';
@@ -23,6 +23,10 @@ export function Customers() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+  const [searching, setSearching] = useState(false);
   const [scope, setScope] = useState<SearchScope>('name');
   const [status, setStatus] = useState<StatusFilter>('all');
   const [grade, setGrade] = useState<'all' | CustomerGrade>('all');
@@ -47,40 +51,69 @@ export function Customers() {
     type: customer.customerType,
     segment: customer.customerSegment,
     companies: customer.companies,
-    salesmanId: customer.salesmanAssignment.salesmanId,
+    salesmanId: customer.salesmanAssignment?.salesmanId ?? 0,
     createdAt: customer.createdAt,
   }), []);
 
-  const loadCustomers = useCallback(async () => {
+  const loadCustomers = useCallback(async (targetPage = page) => {
     setLoading(true);
     setLoadError(null);
     try {
-      const response = await getCustomers();
-      setCustomers(response.map(toCustomer));
+      const response = await getCustomersPage({
+        page: targetPage,
+        size: 20,
+        query,
+        searchById: scope === 'id',
+        active: status === 'all' ? undefined : status === 'active',
+        grade: grade === 'all' ? undefined : grade as ApiCustomerGrade,
+      });
+      setCustomers(response.content.map(toCustomer));
+      setPage(response.number);
+      setTotalPages(response.totalPages);
+      setTotalElements(response.totalElements);
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : 'Unable to load customers.');
     } finally {
       setLoading(false);
     }
-  }, [toCustomer]);
+  }, [grade, page, query, scope, status, toCustomer]);
 
   useEffect(() => {
     let cancelled = false;
-    getCustomers()
+    const timer = window.setTimeout(() => {
+      setSearching(true);
+      setLoadError(null);
+      getCustomersPage({
+        page,
+        size: 20,
+        query,
+        searchById: scope === 'id',
+        active: status === 'all' ? undefined : status === 'active',
+        grade: grade === 'all' ? undefined : grade as ApiCustomerGrade,
+      })
       .then((response) => {
-        if (!cancelled) setCustomers(response.map(toCustomer));
+        if (!cancelled) {
+          setCustomers(response.content.map(toCustomer));
+          setTotalPages(response.totalPages);
+          setTotalElements(response.totalElements);
+        }
       })
       .catch((error: unknown) => {
         if (!cancelled) setLoadError(error instanceof Error ? error.message : 'Unable to load customers.');
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+          setSearching(false);
+        }
       });
+    }, 350);
 
     return () => {
       cancelled = true;
+      window.clearTimeout(timer);
     };
-  }, [toCustomer]);
+  }, [grade, page, query, scope, status, toCustomer]);
 
   const machineCounts = useMemo(() => {
     const counts = new Map<number, number>();
@@ -88,26 +121,14 @@ export function Customers() {
     return counts;
   }, []);
 
-  const activeCount = customers.filter((c) => c.isActive).length;
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return customers.filter((c) => {
-      if (status === 'active' && !c.isActive) return false;
-      if (status === 'inactive' && c.isActive) return false;
-      if (grade !== 'all' && c.grade !== grade) return false;
-      if (!q) return true;
-      if (scope === 'name') return c.customerName.toLowerCase().includes(q) || c.sageCode.toLowerCase().includes(q);
-      const digits = q.replace(/\D/g, '');
-      return digits.length > 0 && String(c.customerId).includes(digits);
-    });
-  }, [customers, query, scope, status, grade]);
+  const filtered = customers;
 
   const hasFilters = query !== '' || status !== 'all' || grade !== 'all';
   const clearFilters = () => {
     setQuery('');
     setStatus('all');
     setGrade('all');
+    setPage(0);
   };
 
   const handleCreate = async (v: CustomerFormValues) => {
@@ -153,7 +174,7 @@ export function Customers() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-ink">Customers</h1>
           <p className="mt-1 text-sm text-ink-muted">
-            {customers.length} customers · {activeCount} active. Select a customer to see their machines.
+            {totalElements} customers. Select a customer to see their machines.
           </p>
         </div>
         <Button icon={<PlusIcon className="h-4 w-4" />} onClick={() => setCreateOpen(true)}>
@@ -167,14 +188,14 @@ export function Customers() {
             <SearchIcon className="ml-3 h-4 w-4 shrink-0 text-ink-subtle" aria-hidden="true" />
             <input
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => { setQuery(e.target.value); setPage(0); }}
               inputMode={scope === 'id' ? 'numeric' : 'text'}
               placeholder={scope === 'name' ? 'Search by customer name or Sage code' : 'Search by customer ID, e.g. 10004'}
               aria-label="Search customers"
               className="h-full min-w-0 flex-1 bg-transparent px-2.5 text-sm text-ink placeholder:text-ink-subtle focus:outline-none" />
             
             {query &&
-            <button type="button" onClick={() => setQuery('')} aria-label="Clear search" className="mr-1 rounded p-1 text-ink-subtle hover:text-ink">
+            <button type="button" onClick={() => { setQuery(''); setPage(0); }} aria-label="Clear search" className="mr-1 rounded p-1 text-ink-subtle hover:text-ink">
                 <XIcon className="h-4 w-4" />
               </button>
             }
@@ -183,7 +204,7 @@ export function Customers() {
                 compact
                 ariaLabel="Search by"
                 value={scope}
-                onChange={setScope}
+                onChange={(value) => { setScope(value); setPage(0); }}
                 options={[
                 { value: 'name', label: 'Name' },
                 { value: 'id', label: 'Customer ID' }]
@@ -196,16 +217,16 @@ export function Customers() {
             <SegmentedControl
               ariaLabel="Filter by status"
               value={status}
-              onChange={setStatus}
+              onChange={(value) => { setStatus(value); setPage(0); }}
               options={[
-              { value: 'all', label: 'All', count: customers.length },
-              { value: 'active', label: 'Active', count: activeCount },
-              { value: 'inactive', label: 'Inactive', count: customers.length - activeCount }]
+              { value: 'all', label: 'All' },
+              { value: 'active', label: 'Active' },
+              { value: 'inactive', label: 'Inactive' }]
               } />
             
             <select
               value={grade}
-              onChange={(e) => setGrade(e.target.value as 'all' | CustomerGrade)}
+              onChange={(e) => { setGrade(e.target.value as 'all' | CustomerGrade); setPage(0); }}
               aria-label="Filter by grade"
               className="h-10 rounded-lg border border-line bg-white px-3 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20">
               
@@ -241,13 +262,21 @@ export function Customers() {
 
         <div className="flex items-center justify-between border-t border-line px-5 py-3 text-xs text-ink-muted">
           <span>
-            Showing {filtered.length} of {customers.length} customers
+            {searching ? 'Searching…' : `Showing ${filtered.length} of ${totalElements} customers · Page ${page + 1} of ${Math.max(totalPages, 1)}`}
           </span>
-          {hasFilters && filtered.length > 0 &&
-          <button type="button" onClick={clearFilters} className="font-medium text-brand-600 hover:text-brand-700">
-              Clear filters
+          <div className="flex items-center gap-2">
+            {hasFilters && filtered.length > 0 &&
+            <button type="button" onClick={clearFilters} className="mr-2 font-medium text-brand-600 hover:text-brand-700">
+                Clear filters
+              </button>
+            }
+            <button type="button" aria-label="Previous page" disabled={page === 0 || searching} onClick={() => setPage((current) => Math.max(0, current - 1))} className="rounded-lg border border-line p-2 disabled:opacity-40">
+              <ChevronLeftIcon className="h-4 w-4" />
             </button>
-          }
+            <button type="button" aria-label="Next page" disabled={page + 1 >= totalPages || searching} onClick={() => setPage((current) => current + 1)} className="rounded-lg border border-line p-2 disabled:opacity-40">
+              <ChevronRightIcon className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </div>
 

@@ -29,7 +29,23 @@ export interface MachineResponse {
 export interface MachineModelResponse { modelId: number; company: MachineCompany; companies: MachineCompany[]; manufacturerId: number; manufacturerName: string; machineTypeId: number; machineTypeName: string; modelNumber: string; modelName: string; description: string | null; isActive: boolean; createdAt: string; createdBy: number }
 export interface MachineModelRequest { company: MachineCompany; companies?: MachineCompany[]; manufacturerId: number; machineTypeId: number; modelNumber: string; modelName: string; description: string | null; isActive: boolean; createdBy?: number }
 
+export interface MachinePage {
+  content: MachineResponse[];
+  totalElements: number;
+  totalPages: number;
+  number: number;
+  size: number;
+  first: boolean;
+  last: boolean;
+}
+
 export const getMachines = async () => (await api.get<MachineResponse[]>('/api/machines')).data;
+export const getMachinesPage = async (params: { page?: number; size?: number; query?: string } = {}) =>
+  (await api.get<MachinePage>('/api/machines/page', { params: {
+    page: params.page ?? 0,
+    size: params.size ?? 20,
+    query: params.query?.trim() || undefined,
+  } })).data;
 export const searchMachines = async (query: string) => (await api.get<MachineResponse[]>('/api/machines/search', { params: { query } })).data;
 export const getMachine = async (id: number) => (await api.get<MachineResponse>(`/api/machines/${id}`)).data;
 export const createMachine = async (request: MachineRequest) => (await api.post<MachineResponse>('/api/machines', request)).data;

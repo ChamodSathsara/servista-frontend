@@ -64,8 +64,40 @@ export interface ServiceVisitStartResponse {
   };
 }
 
-export const getServiceSchedules = async () =>
-  (await api.get<ServiceScheduleResponse[]>(scheduleBase())).data;
+export interface ServiceSchedulePage {
+  content: ServiceScheduleResponse[];
+  totalElements: number;
+  totalPages: number;
+  number: number;
+  size: number;
+  first: boolean;
+  last: boolean;
+}
+
+export interface ServiceSchedulePageParams {
+  page?: number;
+  size?: number;
+  search?: string;
+  status?: ServiceVisitStatus;
+}
+
+export const getServiceSchedules = async (params: ServiceSchedulePageParams = {}): Promise<ServiceSchedulePage> => {
+  const page = params.page ?? 0;
+  const size = params.size ?? 20;
+  if (isTechnician(getCurrentUser())) {
+    const all = (await api.get<ServiceScheduleResponse[]>(scheduleBase())).data;
+    const search = params.search?.trim().toLowerCase();
+    const filtered = all.filter((visit) =>
+      (!search || visit.machineReferenceNumber.toLowerCase().includes(search))
+      && (!params.status || visit.status === params.status));
+    const content = filtered.slice(page * size, (page + 1) * size);
+    const totalPages = Math.ceil(filtered.length / size);
+    return { content, totalElements: filtered.length, totalPages, number: page, size, first: page === 0, last: page + 1 >= totalPages };
+  }
+  return (await api.get<ServiceSchedulePage>('/api/service-schedules', { params: {
+    page, size, search: params.search?.trim() || undefined, status: params.status,
+  } })).data;
+};
 
 export const getServiceSchedule = async (scheduleId: number) =>
   (await api.get<ServiceScheduleResponse>(`${scheduleBase()}/${scheduleId}`)).data;

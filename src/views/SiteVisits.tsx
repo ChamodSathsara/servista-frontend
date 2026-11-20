@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 
 import {
   CalendarCheckIcon,
   ChevronDownIcon,
+  ChevronLeftIcon,
   ChevronRightIcon,
   Clock3Icon,
   FileTextIcon,
@@ -57,6 +58,9 @@ export function SiteVisits() {
   const hydrated = useSyncExternalStore(() => () => undefined, () => true, () => false);
   const technicianMode = hydrated && isTechnician(getCurrentUser());
   const [visits, setVisits] = useState<ServiceScheduleResponse[]>([]);
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<'ALL' | ServiceVisitStatus>('ALL');
   const [lookupMode, setLookupMode] = useState<LookupMode>('all');
@@ -80,14 +84,20 @@ export function SiteVisits() {
   const [actionError, setActionError] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const loadAll = useCallback(async () => {
+  const loadAll = useCallback(async (targetPage = 0) => {
     setLoading(true);
     setError(null);
     try {
-      const [visitResults, counterResults, solutionResults] = await Promise.all([getServiceSchedules(), getMeterCounterTypes(), getSolutionTypes()]);
-      setVisits(visitResults);
-      setMeterCounterTypes(counterResults);
-      setSolutionTypes(solutionResults);
+      const result = await getServiceSchedules({
+        page: targetPage,
+        size: 20,
+        search: query,
+        status: status === 'ALL' ? undefined : status,
+      });
+      setVisits(result.content);
+      setPage(result.number);
+      setTotalPages(result.totalPages);
+      setTotalElements(result.totalElements);
       setLookupMode('all');
       setLookupId('');
       setActiveLookup('All service visits');
@@ -96,18 +106,23 @@ export function SiteVisits() {
     } finally {
       setLoading(false);
     }
-  }, [technicianMode]);
+  }, [query, status]);
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([getServiceSchedules(), getMeterCounterTypes(), getSolutionTypes()])
-      .then(([visitResults, counterResults, solutionResults]) => { if (!cancelled) { setVisits(visitResults); setMeterCounterTypes(counterResults); setSolutionTypes(solutionResults); } })
+    Promise.all([getMeterCounterTypes(), getSolutionTypes()])
+      .then(([counterResults, solutionResults]) => { if (!cancelled) { setMeterCounterTypes(counterResults); setSolutionTypes(solutionResults); } })
       .catch((loadError: unknown) => {
         if (!cancelled) setError(loadError instanceof Error ? loadError.message : 'Unable to load service visits.');
       })
-      .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [technicianMode]);
+
+  useEffect(() => {
+    if (lookupMode !== 'all') return;
+    const timer = window.setTimeout(() => { void loadAll(page); }, 350);
+    return () => window.clearTimeout(timer);
+  }, [loadAll, lookupMode, page]);
 
   const runLookup = async () => {
     if (lookupMode === 'all') {
@@ -124,13 +139,16 @@ export function SiteVisits() {
     setError(null);
     try {
       const result = technicianMode
-        ? (await getServiceSchedules()).filter((visit) => lookupMode === 'agreement'
+        ? (await getServiceSchedules({ size: 100 })).content.filter((visit) => lookupMode === 'agreement'
             ? visit.agreementId === id
             : visit.machineId === id)
         : lookupMode === 'agreement'
           ? await getServiceSchedulesByAgreement(id)
           : await getServiceSchedulesByMachine(id);
       setVisits(result);
+      setPage(0);
+      setTotalPages(result.length ? 1 : 0);
+      setTotalElements(result.length);
       setActiveLookup(`${lookupMode === 'agreement' ? 'Agreement' : 'Machine'} ID ${id}`);
     } catch (lookupError) {
       setVisits([]);
@@ -140,23 +158,9 @@ export function SiteVisits() {
     }
   };
 
-  const filteredVisits = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    return visits.filter((visit) => {
-      const matchesStatus = status === 'ALL' || visit.status === status;
-      const matchesQuery = !normalizedQuery || [
-        visit.agreementNumber,
-        visit.machineReferenceNumber,
-        visit.assignedTechnicianName ?? '',
-        String(visit.serviceScheduleId),
-      ].some((value) => value.toLowerCase().includes(normalizedQuery));
-      return matchesStatus && matchesQuery;
-    });
-  }, [query, status, visits]);
-
   const machineGroups = useMemo(() => {
     const groups = new Map<number, ServiceScheduleResponse[]>();
-    filteredVisits.forEach((visit) => {
+    visits.forEach((visit) => {
       const machineVisits = groups.get(visit.machineId) ?? [];
       machineVisits.push(visit);
       groups.set(visit.machineId, machineVisits);
@@ -166,7 +170,7 @@ export function SiteVisits() {
       machineReferenceNumber: machineVisits[0].machineReferenceNumber,
       visits: machineVisits.sort((a, b) => a.expectedVisitDate.localeCompare(b.expectedVisitDate)),
     }));
-  }, [filteredVisits]);
+  }, [visits]);
 
   const toggleMachine = (machineId: number) => {
     setExpandedMachines((current) => {
@@ -250,7 +254,7 @@ export function SiteVisits() {
             <CalendarCheckIcon className="h-4 w-4" /> Service operations
           </div>
           <h1 className="mt-1 text-2xl font-semibold text-ink">Site Visits</h1>
-          <p className="mt-1 text-sm text-ink-muted">{activeLookup} · {visits.length} visits</p>
+          <p className="mt-1 text-sm text-ink-muted">{activeLookup} · {totalElements} visits</p>
         </div>
         {lookupMode !== 'all' && (
           <Button variant="secondary" icon={<RotateCcwIcon className="h-4 w-4" />} onClick={() => void loadAll()}>
@@ -298,16 +302,16 @@ export function SiteVisits() {
             <SearchIcon className="ml-3 h-4 w-4 text-ink-subtle" />
             <input
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search machine, agreement or technician"
+              onChange={(event) => { setQuery(event.target.value); setPage(0); setLookupMode('all'); }}
+              placeholder="Search by Q number"
               className="h-full min-w-0 flex-1 bg-transparent px-2.5 text-sm outline-none"
               aria-label="Search site visits"
             />
-            {query && <button type="button" onClick={() => setQuery('')} aria-label="Clear search" className="mr-2"><XIcon className="h-4 w-4" /></button>}
+            {query && <button type="button" onClick={() => { setQuery(''); setPage(0); }} aria-label="Clear search" className="mr-2"><XIcon className="h-4 w-4" /></button>}
           </div>
           <select
             value={status}
-            onChange={(event) => setStatus(event.target.value as 'ALL' | ServiceVisitStatus)}
+            onChange={(event) => { setStatus(event.target.value as 'ALL' | ServiceVisitStatus); setPage(0); setLookupMode('all'); }}
             className="h-10 rounded-lg border border-line bg-white px-3 text-sm outline-none focus:border-brand-500"
             aria-label="Filter visit status"
           >
@@ -380,6 +384,17 @@ export function SiteVisits() {
             <SearchXIcon className="mx-auto h-8 w-8 text-ink-subtle" />
             <p className="mt-3 text-sm font-medium text-ink">No site visits found</p>
             <p className="mt-1 text-xs text-ink-subtle">Try another lookup, search term, or status.</p>
+          </div>
+        )}
+        {!loading && !error && lookupMode === 'all' && totalElements > 0 && (
+          <div className="flex items-center justify-between border-t border-line px-5 py-3">
+            <p className="text-xs text-ink-muted">
+              Showing {visits.length} of {totalElements} visits · Page {page + 1} of {Math.max(totalPages, 1)}
+            </p>
+            <div className="flex gap-2">
+              <button type="button" aria-label="Previous page" disabled={page === 0 || loading} onClick={() => setPage((current) => Math.max(0, current - 1))} className="rounded-lg border border-line p-2 text-ink-muted disabled:opacity-40"><ChevronLeftIcon className="h-4 w-4" /></button>
+              <button type="button" aria-label="Next page" disabled={page + 1 >= totalPages || loading} onClick={() => setPage((current) => current + 1)} className="rounded-lg border border-line p-2 text-ink-muted disabled:opacity-40"><ChevronRightIcon className="h-4 w-4" /></button>
+            </div>
           </div>
         )}
       </div>

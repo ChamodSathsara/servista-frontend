@@ -1,6 +1,6 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { DownloadIcon, PlusIcon, SearchIcon, SearchXIcon, UploadIcon, XIcon } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { ChevronLeftIcon, ChevronRightIcon, DownloadIcon, PlusIcon, SearchIcon, SearchXIcon, UploadIcon, XIcon } from "lucide-react";
 import { toast } from "sonner";
 import {
   createMachine,
@@ -8,8 +8,7 @@ import {
   deleteMachine,
   getMachine,
   getMachineModels,
-  getMachines,
-  searchMachines,
+  getMachinesPage,
   updateMachine,
   transferMachineCustomer,
   changeMachineTechnicians,
@@ -54,6 +53,9 @@ export function Machines() {
   const [models, setModels] = useState<MachineModelResponse[]>([]);
   const [cities, setCities] = useState<CityResponse[]>([]);
   const [query, setQuery] = useState("");
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
@@ -74,8 +76,6 @@ export function Machines() {
   const [customerCreateOpen, setCustomerCreateOpen] = useState(false);
   const [transferInitialCustomerId, setTransferInitialCustomerId] = useState<number | null>(null);
   const [importing, setImporting] = useState(false);
-  const initialSearch = useRef(true);
-
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -88,14 +88,17 @@ export function Machines() {
         modelData,
         cityData,
       ] = await Promise.all([
-        getMachines(),
+        getMachinesPage({ page: 0, size: 20 }),
         getCustomers(),
         getTechnicians(),
         getSalesmen(),
         getMachineModels(),
         getCities(),
       ]);
-      setMachines(machineData);
+      setMachines(machineData.content);
+      setPage(machineData.number);
+      setTotalPages(machineData.totalPages);
+      setTotalElements(machineData.totalElements);
       setCustomers(customerData);
       setTechnicians(techData);
       setSalesmen(salesmanData);
@@ -110,16 +113,14 @@ export function Machines() {
   useEffect(() => {
     let cancelled = false;
     Promise.all([
-      getMachines(),
       getCustomers(),
       getTechnicians(),
       getSalesmen(),
       getMachineModels(),
       getCities(),
     ])
-      .then(([a, b, c, d, e, f]) => {
+      .then(([b, c, d, e, f]) => {
         if (!cancelled) {
-          setMachines(a);
           setCustomers(b);
           setTechnicians(c);
           setSalesmen(d);
@@ -131,65 +132,44 @@ export function Machines() {
         if (!cancelled)
           setError(e instanceof Error ? e.message : "Unable to load machines.");
       })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
     return () => {
       cancelled = true;
     };
   }, []);
   useEffect(() => {
     let cancelled = false;
-    if (!query.trim()) {
-      if (initialSearch.current) {
-        initialSearch.current = false;
-        return;
-      }
-      getMachines()
-        .then((data) => {
-          if (!cancelled) setMachines(data);
-        })
-        .catch((e: unknown) => {
-          if (!cancelled)
-            toast.error(
-              e instanceof Error ? e.message : "Unable to reload machines.",
-            );
-        });
-      return () => {
-        cancelled = true;
-      };
-    }
     const timer = window.setTimeout(() => {
       setSearching(true);
-      searchMachines(query.trim())
+      setError(null);
+      getMachinesPage({ page, size: 20, query })
         .then((data) => {
-          if (!cancelled) setMachines(data);
+          if (!cancelled) {
+            setMachines(data.content);
+            setTotalPages(data.totalPages);
+            setTotalElements(data.totalElements);
+          }
         })
         .catch((e: unknown) => {
-          if (!cancelled)
+          if (!cancelled) {
+            setError(e instanceof Error ? e.message : "Unable to load machines.");
             toast.error(e instanceof Error ? e.message : "Search failed.");
+          }
         })
         .finally(() => {
-          if (!cancelled) setSearching(false);
+          if (!cancelled) {
+            setSearching(false);
+            setLoading(false);
+          }
         });
     }, 350);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [query]);
-  const clearSearch = async () => {
+  }, [page, query]);
+  const clearSearch = () => {
     setQuery("");
-    setSearching(true);
-    try {
-      setMachines(await getMachines());
-    } catch (e) {
-      toast.error(
-        e instanceof Error ? e.message : "Unable to reload machines.",
-      );
-    } finally {
-      setSearching(false);
-    }
+    setPage(0);
   };
   const userId = () => {
     const raw =
@@ -349,7 +329,7 @@ export function Machines() {
         <div>
           <h1 className="text-2xl font-semibold text-ink">Machines</h1>
           <p className="mt-1 text-sm text-ink-muted">
-            {machines.length} machines. Search by reference, serial number or
+            {totalElements} machines. Search by reference, serial number or
             configured machine fields.
           </p>
         </div>
@@ -386,13 +366,13 @@ export function Machines() {
             <SearchIcon className="ml-3 h-4 w-4 text-ink-subtle" />
             <input
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => { setQuery(e.target.value); setPage(0); }}
               placeholder="Search reference or serial number"
               className="h-full min-w-0 flex-1 bg-transparent px-2.5 text-sm outline-none"
             />
             {query && (
               <button
-                onClick={() => void clearSearch()}
+                onClick={clearSearch}
                 className="mr-2 p-1 text-ink-subtle"
                 aria-label="Clear search"
               >
@@ -427,8 +407,16 @@ export function Machines() {
             <p className="mt-3 text-sm font-medium">No machines found</p>
           </div>
         )}
-        <div className="border-t border-line px-5 py-3 text-xs text-ink-muted">
-          {searching ? "Searching…" : `Showing ${machines.length} machines`}
+        <div className="flex items-center justify-between border-t border-line px-5 py-3 text-xs text-ink-muted">
+          <span>{searching ? "Searching…" : `Showing ${machines.length} of ${totalElements} machines · Page ${page + 1} of ${Math.max(totalPages, 1)}`}</span>
+          <div className="flex gap-2">
+            <button type="button" aria-label="Previous page" disabled={page === 0 || searching} onClick={() => setPage((current) => Math.max(0, current - 1))} className="rounded-lg border border-line p-2 disabled:opacity-40">
+              <ChevronLeftIcon className="h-4 w-4" />
+            </button>
+            <button type="button" aria-label="Next page" disabled={page + 1 >= totalPages || searching} onClick={() => setPage((current) => current + 1)} className="rounded-lg border border-line p-2 disabled:opacity-40">
+              <ChevronRightIcon className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </div>
       <MachineDrawer

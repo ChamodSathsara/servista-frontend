@@ -59,7 +59,7 @@ export interface CustomerResponse {
   updatedAt: string | null;
   updatedBy: number | null;
   companies: ApiCompany[];
-  salesmanAssignment: SalesmanAssignment;
+  salesmanAssignment: SalesmanAssignment | null;
 }
 
 export interface CreateCustomerRequest {
@@ -85,6 +85,35 @@ export type UpdateCustomerRequest = Omit<CreateCustomerRequest, 'createdBy' | 'c
 
 export async function getCustomers(): Promise<CustomerResponse[]> {
   const { data } = await api.get<CustomerResponse[]>('/api/customers');
+  return data;
+}
+
+export interface CustomerPage {
+  content: CustomerResponse[];
+  totalElements: number;
+  totalPages: number;
+  number: number;
+  size: number;
+  first: boolean;
+  last: boolean;
+}
+
+export async function getCustomersPage(params: {
+  page?: number;
+  size?: number;
+  query?: string;
+  searchById?: boolean;
+  active?: boolean;
+  grade?: ApiCustomerGrade;
+} = {}): Promise<CustomerPage> {
+  const { data } = await api.get<CustomerPage>('/api/customers/page', { params: {
+    page: params.page ?? 0,
+    size: params.size ?? 20,
+    query: params.query?.trim() || undefined,
+    searchById: params.searchById ?? false,
+    active: params.active,
+    grade: params.grade,
+  } });
   return data;
 }
 
